@@ -12,6 +12,7 @@
 Запуск: ./.venv/bin/python tools/build_cloud_test.py
 Результат: public/index.html
 """
+import json
 import os
 import re
 import sys
@@ -51,6 +52,20 @@ def main() -> None:
     os.makedirs(OUT_DIR, exist_ok=True)
     with open(OUT, "w", encoding="utf-8") as fh:
         fh.write(html)
+
+    # настройки сайта кладём сюда же: выкладывается только эта папка, чтобы
+    # ключи облака из .env физически не могли уехать вместе с ней
+    with open(os.path.join(OUT_DIR, "vercel.json"), "w", encoding="utf-8") as fh:
+        fh.write(json.dumps({
+            "cleanUrls": True,
+            "headers": [{
+                "source": "/(.*)",
+                "headers": [
+                    {"key": "X-Content-Type-Options", "value": "nosniff"},
+                    {"key": "Referrer-Policy", "value": "no-referrer"},
+                ],
+            }],
+        }, ensure_ascii=False, indent=2))
     size = os.path.getsize(OUT)
     assert "assets/" not in html, "остались внешние ссылки"
     print(f"собрано: {OUT} ({size/1024:.0f} КБ)")
