@@ -641,14 +641,26 @@ async function showBridgeState() {
   // только на разборе. Поэтому состояние моста видно до начала теста
   const hint = document.getElementById("bridge-hint");
   if (!hint) { return; }
+  window.BHS_BRIDGE_DOWN = false;
   const status = await bridgeStatus();
-  if (window.BHS_BRIDGE_DOWN || !status.streaming) {
-    hint.innerHTML = "<b>Прибор не подключён.</b> Запустите СТАРТ на этом "
-      + "ноутбуке и откройте Mind Tracker. Сейчас тест запишет только ответы.";
+  if (window.BHS_BRIDGE_DOWN) {
+    // программы на этом ноутбуке нет вовсе. Тест пройдёт, но без мозга,
+    // и менеджер узнает об этом только на разборе, если не сказать сейчас
+    hint.innerHTML = "<b>Программа не установлена на этом ноутбуке.</b><br>"
+      + "Тест сейчас запишет только ответы, без нейро-слоя. Установите "
+      + "«Нейропрофориентация BHS» и откройте страницу заново.";
     hint.style.color = "#F0666B";
     return;
   }
   const place = status.operator_name || status.operator || "";
+  if (!status.connected) {
+    hint.innerHTML = "<b>Ободок не найден.</b> " + (status.device_error
+      || "Включите его и подключите в Mind Tracker.")
+      + "<br>Программа ждёт прибор и подхватит его сама."
+      + (place ? " Рабочее место: " + place + "." : "");
+    hint.style.color = "#F0666B";
+    return;
+  }
   hint.textContent = "Прибор на связи" + (place ? ", рабочее место: " + place : "")
     + ". Батарея " + (status.battery || 0) + "%.";
   hint.style.color = "";

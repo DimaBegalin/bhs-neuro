@@ -21,12 +21,16 @@ def build(fake: bool, channel: str = "ble", mirror_only: bool = False,
         # а генератор держит контракт устройства, чтобы мост не менялся
         from bridge.fake_device import FakeDevice
         device = FakeDevice()
-    elif channel == "sdk":
-        from bridge.device import BrainBitDevice
-        device = BrainBitDevice()
     else:
-        from bridge.ble_device import BleHeadbandDevice
-        device = BleHeadbandDevice()
+        # мост живёт весь день и поднимается вместе с системой, а ободок то
+        # включён, то заряжается. Поэтому прибор не требуется в момент старта:
+        # обёртка ищет его сама и подхватывает, как только он появится
+        from bridge.waiting_device import WaitingDevice
+        if channel == "sdk":
+            from bridge.device import BrainBitDevice as Headband
+        else:
+            from bridge.ble_device import BleHeadbandDevice as Headband
+        device = WaitingDevice(Headband)
     clock = SessionClock()
     mirror = None
     if not fake or mirror_only:

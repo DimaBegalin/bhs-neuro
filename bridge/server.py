@@ -145,6 +145,8 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
             # страница теста показывает менеджеру, к какому мосту подключилась
             "operator": operator_code(),
             "operator_name": operator_name(),
+            # почему прибора нет: менеджеру это видно прямо на странице теста
+            "device_error": getattr(device, "last_error", "") or "",
         }
 
     @app.post("/event")

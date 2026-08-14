@@ -17,20 +17,28 @@ def env(tmp_path, monkeypatch):
 
 
 def test_operator_code_comes_from_env_when_set(env, monkeypatch):
-    env.write_text("OPERATOR=Анна Петрова\nOPERATOR_NAME=Анна Петрова\n",
-                   encoding="utf-8")
-    # кириллица в коде недопустима: он идёт в имя файла и в облако
-    monkeypatch.setattr(op, "_computer_name", lambda: "Mac Anna")
-    assert op.operator_code() == "macanna"
-
     env.write_text("OPERATOR=anna-2\n", encoding="utf-8")
+    monkeypatch.setattr(op, "_computer_name", lambda: "Mac Anna")
     assert op.operator_code() == "anna2"
+
+
+def test_russian_name_becomes_readable_latin_code(env, monkeypatch):
+    """Кириллица в коде недопустима: он идёт в имя файла визита и в облако.
+
+    Выбрасывать её нельзя: русское имя целиком обнулялось, установщик
+    подставлял хеш вида 7fe77581, и рабочее место в панели было не опознать.
+    """
+    monkeypatch.setattr(op, "_computer_name", lambda: "Mac Anna")
+    env.write_text("OPERATOR=Анна Петрова\n", encoding="utf-8")
+    assert op.operator_code() == "annapetrova"
+    env.write_text("OPERATOR=Диана Серікқызы\n", encoding="utf-8")
+    assert op.operator_code() == "dianaserikqy"
 
 
 def test_operator_code_falls_back_to_computer_name(env, monkeypatch):
     env.write_text("", encoding="utf-8")
     monkeypatch.setattr(op, "_computer_name", lambda: "MacBook Ани")
-    assert op.operator_code() == "macbook"
+    assert op.operator_code() == "macbookani"
 
 
 def test_operator_code_never_empty(env, monkeypatch):
