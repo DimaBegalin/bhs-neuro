@@ -10,7 +10,7 @@
 пишется только на ноутбуке, где работает мост и подключён ободок.
 
 Запуск: ./.venv/bin/python tools/build_cloud_test.py
-Результат: public/test.html
+Результат: public/index.html
 """
 import os
 import re
@@ -21,7 +21,9 @@ WEB = os.path.join(ROOT, "web")
 # public потому, что этот каталог выкладывается на сайт как есть,
 # а Vercel и git с кириллицей в путях обращаются по-разному
 OUT_DIR = os.path.join(ROOT, "public")
-OUT = os.path.join(OUT_DIR, "test.html")
+# index.html, а не test.html: страница теста это и есть весь сайт,
+# менеджеру диктовать короткий адрес проще, чем адрес с хвостом
+OUT = os.path.join(OUT_DIR, "index.html")
 # порядок тот же, что в index.html: движок зависит от словарей и клиента моста
 SCRIPTS = ("i18n.js", "blocks.js", "bridge-client.js", "engine.js")
 
