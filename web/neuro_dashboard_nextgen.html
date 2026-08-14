@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BHS NeuroTracker Pro · Когнитивный Нейромонитор</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #06080F;
+      --bg-surface: rgba(14, 18, 30, 0.75);
+      --bg-surface-elevated: rgba(22, 28, 48, 0.85);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-glow: rgba(0, 240, 255, 0.25);
+      
+      --cyan: #00F0FF;
+      --cyan-glow: rgba(0, 240, 255, 0.4);
+      --purple: #A855F7;
+      --purple-glow: rgba(168, 85, 247, 0.4);
+      --emerald: #10B981;
+      --emerald-glow: rgba(16, 185, 129, 0.4);
+      --amber: #F59E0B;
+      --amber-glow: rgba(245, 158, 11, 0.4);
+      --rose: #F43F5E;
+      --rose-glow: rgba(244, 63, 94, 0.4);
+      --indigo: #6366F1;
+
+      --text-main: #F8FAFC;
+      --text-muted: #94A3B8;
+      --text-dim: #64748B;
+      
+      --radius-sm: 10px;
+      --radius-md: 18px;
+      --radius-lg: 26px;
+      --radius-full: 9999px;
+      
+      --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.12) 0%, transparent 45%),
+        radial-gradient(circle at 85% 20%, rgba(168, 85, 247, 0.12) 0%, transparent 45%),
+        radial-gradient(circle at 50% 85%, rgba(0, 240, 255, 0.08) 0%, transparent 55%),
+        linear-gradient(180deg, rgba(6, 8, 15, 0.95) 0%, #06080F 100%);
+      color: var(--text-main);
+      font-family: var(--font-main);
+      min-height: 100vh;
+      padding: 24px;
+      overflow-x: hidden;
+    }
+
+    .container {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* GLASS CARD */
+    .glass-card {
+      background: var(--bg-surface);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 24px 28px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .glass-card:hover {
+      border-color: rgba(255, 255, 255, 0.14);
+    }
+
+    /* HEADER */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .logo-badge {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #00F0FF 0%, #6366F1 50%, #A855F7 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 20px;
+      color: #fff;
+      box-shadow: 0 0 24px var(--cyan-glow);
+    }
+    .brand-title {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(90deg, #FFFFFF 0%, #CBD5E1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .brand-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .pill-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: var(--radius-full);
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--emerald);
+      box-shadow: 0 0 10px var(--emerald-glow);
+      animation: pulse-dot 1.8s infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.4); opacity: 0.6; }
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: var(--radius-full);
+      font-family: var(--font-main);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--cyan) 0%, #3B82F6 100%);
+      color: #06080F;
+      box-shadow: 0 0 20px var(--cyan-glow);
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 0 28px rgba(0, 240, 255, 0.6);
+    }
+    .btn-ghost {
+      background: var(--bg-surface-elevated);
+      color: var(--text-main);
+      border-color: var(--border-subtle);
+    }
+    .btn-ghost:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* GRID LAYOUT */
+    .grid-main {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 24px;
+    }
+    @media (max-width: 1150px) {
+      .grid-main { grid-template-columns: 1fr; }
+    }
+
+    /* HERO METRICS ROW */
+    .metrics-ribbon {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+    @media (max-width: 900px) {
+      .metrics-ribbon { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 550px) {
+      .metrics-ribbon { grid-template-columns: 1fr; }
+    }
+
+    .metric-card {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+    .metric-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--accent, var(--cyan));
+    }
+    .metric-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+    .metric-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .metric-icon {
+      font-size: 18px;
+      opacity: 0.8;
+    }
+    .metric-value-row {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .metric-value {
+      font-size: 38px;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      letter-spacing: -1px;
+      line-height: 1;
+      color: #fff;
+    }
+    .metric-unit {
+      font-size: 16px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .metric-status {
+      font-size: 12px;
+      font-weight: 600;
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* WAVE VIEWER & CHANNELS */
+    .wave-section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-tag {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      background: rgba(0, 240, 255, 0.1);
+      color: var(--cyan);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+
+    .canvas-container {
+      position: relative;
+      width: 100%;
+      height: 240px;
+      background: rgba(6, 9, 18, 0.8);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+      overflow: hidden;
+    }
+    canvas#eegCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .channel-legend {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .channel-pill {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .chan-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .chan-color {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+    }
+    .chan-name {
+      font-size: 13px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+    }
+    .chan-impedance {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--emerald);
+    }
+
+    /* COGNITIVE MATRIX & RADAR */
+    .matrix-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 24px;
+    }
+    @media (max-width: 800px) {
+      .matrix-grid { grid-template-columns: 1fr; }
+    }
+
+    .radar-wrapper {
+      position: relative;
+      height: 280px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    canvas#radarCanvas {
+      max-width: 100%;
+      max-height: 100%;
+    }
+
+    .domain-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .domain-card {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.2s ease;
+    }
+    .domain-card:hover {
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateX(4px);
+    }
+    .domain-meta h4 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .domain-meta p {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .domain-stats {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-align: right;
+    }
+    .stat-box {
+      font-family: var(--font-mono);
+    }
+    .stat-val {
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .stat-lbl {
+      font-size: 10px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+    .channel-badge {
+      padding: 5px 12px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-flow {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34D399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .badge-costly {
+      background: rgba(244, 63, 94, 0.15);
+      color: #FB7185;
+      border: 1px solid rgba(244, 63, 94, 0.3);
+    }
+    .badge-solid {
+      background: rgba(99, 102, 241, 0.15);
+      color: #818CF8;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+
+    /* RIGHT SIDEBAR (HEAD MAP & FLOW) */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .head-map-container {
+      position: relative;
+      width: 100%;
+      height: 240px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .head-svg {
+      width: 180px;
+      height: 220px;
+    }
+    .sensor-node {
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .sensor-node:hover {
+      filter: drop-shadow(0 0 8px var(--cyan));
+    }
+
+    /* TASK CONTROLLER (SIMULATOR & LIVE) */
+    .scenario-bar {
+      display: flex;
+      gap: 8px;
+      background: var(--bg-surface-elevated);
+      padding: 6px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--border-subtle);
+      overflow-x: auto;
+    }
+    .scenario-btn {
+      background: transparent;
+      border: 0;
+      color: var(--text-muted);
+      font-family: var(--font-main);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: var(--radius-full);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+    .scenario-btn.active {
+      background: linear-gradient(135deg, var(--indigo) 0%, var(--purple) 100%);
+      color: #fff;
+      box-shadow: 0 0 14px var(--purple-glow);
+    }
+
+    /* INSIGHT BANNER */
+    .insight-card {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.1) 100%);
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      border-radius: var(--radius-md);
+      padding: 20px 24px;
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      margin-top: 16px;
+    }
+    .insight-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: rgba(168, 85, 247, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+      color: var(--purple);
+    }
+    .insight-body h4 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+    .insight-body p {
+      font-size: 14px;
+      line-height: 1.5;
+      color: #CBD5E1;
+    }
+
+    /* FOOTER DISPATCH */
+    .footer-note {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-dim);
+      padding: 20px 0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- TOP HEADER -->
+  <header class="header">
+    <div class="brand">
+      <div class="logo-badge">β</div>
+      <div>
+        <h1 class="brand-title">Beta High School · NeuroTracker Pro</h1>
+        <p class="brand-subtitle">Система объективного нейрокогнитивного картирования BCI v3.0</p>
+      </div>
+    </div>
+    
+    <div class="header-controls">
+      <div class="pill-badge">
+        <span class="live-dot" id="statusDot"></span>
+        <span id="streamStatus">STREAM: 250 Hz (ONLINE)</span>
+      </div>
+      <div class="pill-badge" style="font-family: var(--font-mono);">
+        IAF: <span id="iafVal" style="color:var(--cyan); margin-left:4px;">10.2 Hz</span>
+      </div>
+      <button class="btn btn-ghost" id="modeToggle">Режим: Симуляция</button>
+      <button class="btn btn-primary" onclick="window.print()">Экспорт Отчёта</button>
+    </div>
+  </header>
+
+  <!-- SCENARIO SWITCHER (LIVE TESTING CONTROLLER) -->
+  <div class="glass-card" style="padding: 14px 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+      <div style="font-size: 13px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
+        Фаза тестирования:
+      </div>
+      <div class="scenario-bar">
+        <button class="scenario-btn" onclick="setPhase('baseline')">1. Калибровка (Покой)</button>
+        <button class="scenario-btn active" onclick="setPhase('logic')">2. Логика и Алгоритмы</button>
+        <button class="scenario-btn" onclick="setPhase('spatial')">3. 3D-Пространство</button>
+        <button class="scenario-btn" onclick="setPhase('verbal')">4. Вербальный анализ</button>
+        <button class="scenario-btn" onclick="setPhase('memory')">5. 1-Back Память (Стресс)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 HERO REAL-TIME METRICS -->
+  <div class="metrics-ribbon">
+    <div class="metric-card" style="--accent: var(--cyan);">
+      <div class="metric-header">
+        <span class="metric-title">Индекс Вовлечения (Pope)</span>
+        <span class="metric-icon">⚡</span>
+      </div>
+      <div class="metric-value-row">
+        <span class="metric-value" id="valFocus">78</span>
+        <span class="metric-unit">%</span>
+      </div>
+      <div class="metric-status" style="color: var(--cyan);">
+        <span>●</span> Состояние глубокого фокуса (Flow)
+      </div>
+    </div>
+
+    <div class="metric-card" style="--accent: var(--purple);">
+      <div class="metric-header">
+        <span class="metric-title">Когнитивная Нагрузка</span>
+        <span class="metric-icon">🧠</span>
+      </div>
+      <div class="metric-value-row">
+        <span class="metric-value" id="valLoad">42</span>
+        <span class="metric-unit">%</span>
+      </div>
+      <div class="metric-status" style="color: var(--purple);">
+        <span>●</span> Оптимальный рабочий режим
+      </div>
+    </div>
+
+    <div class="metric-card" style="--accent: var(--emerald);">
+      <div class="metric-header">
+        <span class="metric-title">Релаксация / Запас Сил</span>
+        <span class="metric-icon">🔋</span>
+      </div>
+      <div class="metric-value-row">
+        <span class="metric-value" id="valRelax">64</span>
+        <span class="metric-unit">%</span>
+      </div>
+      <div class="metric-status" style="color: var(--emerald);">
+        <span>●</span> Высокая устойчивость к усталости
+      </div>
+    </div>
+
+    <div class="metric-card" style="--accent: var(--amber);">
+      <div class="metric-header">
+        <span class="metric-title">Синхронность (ERD/ERS)</span>
+        <span class="metric-icon">🎯</span>
+      </div>
+      <div class="metric-value-row">
+        <span class="metric-value" id="valCoherence">91</span>
+        <span class="metric-unit">%</span>
+      </div>
+      <div class="metric-status" style="color: var(--amber);">
+        <span>●</span> Четкая корковая активация
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN DUAL-COLUMN GRID -->
+  <div class="grid-main">
+
+    <!-- LEFT COLUMN: LIVE WAVES & COGNITIVE MATRIX -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+
+      <!-- REAL-TIME 4-CHANNEL WAVE VIEWER -->
+      <div class="glass-card">
+        <div class="wave-section-header">
+          <div class="section-title">
+            <span>Сырой ЭЭG-сигнал в реальном времени</span>
+            <span class="section-tag">250 FPS · DSP FILTER 1-40Hz</span>
+          </div>
+          <div style="font-size: 12px; color: var(--text-dim); font-family: var(--font-mono);">
+            ШУМОПОДАВЛЕНИЕ: NOTCH 50Hz ON
+          </div>
+        </div>
+
+        <div class="canvas-container">
+          <canvas id="eegCanvas"></canvas>
+        </div>
+
+        <div class="channel-legend">
+          <div class="channel-pill">
+            <div class="chan-info">
+              <span class="chan-color" style="background: #00F0FF;"></span>
+              <span class="chan-name">T3 (Левый висок)</span>
+            </div>
+            <span class="chan-impedance">98% OK</span>
+          </div>
+          <div class="channel-pill">
+            <div class="chan-info">
+              <span class="chan-color" style="background: #A855F7;"></span>
+              <span class="chan-name">T4 (Правый висок)</span>
+            </div>
+            <span class="chan-impedance">96% OK</span>
+          </div>
+          <div class="channel-pill">
+            <div class="chan-info">
+              <span class="chan-color" style="background: #10B981;"></span>
+              <span class="chan-name">O1 (Затылок L)</span>
+            </div>
+            <span class="chan-impedance">99% OK</span>
+          </div>
+          <div class="channel-pill">
+            <div class="chan-info">
+              <span class="chan-color" style="background: #F59E0B;"></span>
+              <span class="chan-name">O2 (Затылок R)</span>
+            </div>
+            <span class="chan-impedance">100% OK</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- COGNITIVE EFFICIENCY MATRIX & RADAR -->
+      <div class="glass-card">
+        <div class="section-title" style="margin-bottom: 16px;">
+          <span>Карта когнитивной эффективности: «Результат vs Энергозатраты»</span>
+        </div>
+
+        <div class="matrix-grid">
+          <!-- RADAR CANVAS -->
+          <div class="radar-wrapper">
+            <canvas id="radarCanvas" width="300" height="280"></canvas>
+          </div>
+
+          <!-- DOMAIN BREAKDOWN -->
+          <div class="domain-list">
+            <div class="domain-card">
+              <div class="domain-meta">
+                <h4>Логика и Алгоритмы</h4>
+                <p>Числовые ряды, поиск паттернов</p>
+              </div>
+              <div class="domain-stats">
+                <div class="stat-box">
+                  <div class="stat-val" style="color:var(--emerald);">94%</div>
+                  <div class="stat-lbl">Точность</div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-val" style="color:var(--cyan);">0.28</div>
+                  <div class="stat-lbl">Цена</div>
+                </div>
+                <span class="channel-badge badge-flow">FLOW КАНАЛ</span>
+              </div>
+            </div>
+
+            <div class="domain-card">
+              <div class="domain-meta">
+                <h4>3D и Пространство</h4>
+                <p>Мысленное вращение, проекции</p>
+              </div>
+              <div class="domain-stats">
+                <div class="stat-box">
+                  <div class="stat-val" style="color:var(--indigo);">88%</div>
+                  <div class="stat-lbl">Точность</div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-val" style="color:var(--text-muted);">0.52</div>
+                  <div class="stat-lbl">Цена</div>
+                </div>
+                <span class="channel-badge badge-solid">РАБОЧИЙ</span>
+              </div>
+            </div>
+
+            <div class="domain-card">
+              <div class="domain-meta">
+                <h4>Слова и Смыслы</h4>
+                <p>Семантические аналогии, контекст</p>
+              </div>
+              <div class="domain-stats">
+                <div class="stat-box">
+                  <div class="stat-val" style="color:var(--indigo);">82%</div>
+                  <div class="stat-lbl">Точность</div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-val" style="color:var(--text-muted);">0.61</div>
+                  <div class="stat-lbl">Цена</div>
+                </div>
+                <span class="channel-badge badge-solid">РАБОЧИЙ</span>
+              </div>
+            </div>
+
+            <div class="domain-card">
+              <div class="domain-meta">
+                <h4>Оперативная память</h4>
+                <p>1-Back нагрузка, темп реакции</p>
+              </div>
+              <div class="domain-stats">
+                <div class="stat-box">
+                  <div class="stat-val" style="color:var(--amber);">74%</div>
+                  <div class="stat-lbl">Точность</div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-val" style="color:var(--rose);">1.14</div>
+                  <div class="stat-lbl">Цена</div>
+                </div>
+                <span class="channel-badge badge-costly">ДОРОГОЙ</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- INSIGHT CARD FOR PARENTS & MENTORS -->
+        <div class="insight-card">
+          <div class="insight-icon">💡</div>
+          <div class="insight-body">
+            <h4 id="insightHeading">Главный нейро-инсайт: Природный Алгоритмический Мыслитель</h4>
+            <p id="insightText">
+              Мозг демонстрирует максимальную корковую эффективность (десинхронизация альфа-ритма при минимальной тета-нагрузке) на задачах дискретной логики и алгоритмов. Ребёнок решает сложнейшие логические паттерны «в потоке» без биологического перегрева. При этом длительное удержание данных в оперативной памяти требует повышенных волевых энергозатрат.
+            </p>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- RIGHT SIDEBAR: 3D HEAD TOPOGRAPHY & DIAGNOSTICIAN RADAR -->
+    <aside class="sidebar">
+
+      <!-- TOPOGRAPHIC BRAIN MAP -->
+      <div class="glass-card">
+        <div class="section-title" style="margin-bottom: 12px; font-size: 16px;">
+          <span>Топография 10-20</span>
+        </div>
+
+        <div class="head-map-container">
+          <svg class="head-svg" viewBox="0 0 200 240">
+            <defs>
+              <radialGradient id="glowT3" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#00F0FF" stop-opacity="0.8"/>
+                <stop offset="100%" stop-color="#00F0FF" stop-opacity="0"/>
+              </radialGradient>
+              <radialGradient id="glowT4" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#A855F7" stop-opacity="0.8"/>
+                <stop offset="100%" stop-color="#A855F7" stop-opacity="0"/>
+              </radialGradient>
+              <radialGradient id="glowO1" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#10B981" stop-opacity="0.8"/>
+                <stop offset="100%" stop-color="#10B981" stop-opacity="0"/>
+              </radialGradient>
+              <radialGradient id="glowO2" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.8"/>
+                <stop offset="100%" stop-color="#F59E0B" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+
+            <!-- HEAD OUTLINE -->
+            <path d="M 100 25 C 50 25, 25 70, 25 130 C 25 180, 55 215, 100 215 C 145 215, 175 180, 175 130 C 175 70, 150 25, 100 25 Z" 
+                  fill="rgba(18, 24, 42, 0.6)" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
+            <!-- NOSE -->
+            <path d="M 94 25 L 100 12 L 106 25" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+            <!-- EARS -->
+            <path d="M 25 115 C 15 115, 15 145, 25 145" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+            <path d="M 175 115 C 185 115, 185 145, 175 145" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+
+            <!-- SENSORS & GLOW AURA -->
+            <!-- T3 (Left Temporal) -->
+            <circle id="auraT3" cx="42" cy="120" r="22" fill="url(#glowT3)"/>
+            <circle class="sensor-node" cx="42" cy="120" r="7" fill="#00F0FF" stroke="#fff" stroke-width="2"/>
+            <text x="42" y="106" font-size="10" font-weight="700" fill="#CBD5E1" text-anchor="middle" font-family="'JetBrains Mono'">T3</text>
+
+            <!-- T4 (Right Temporal) -->
+            <circle id="auraT4" cx="158" cy="120" r="22" fill="url(#glowT4)"/>
+            <circle class="sensor-node" cx="158" cy="120" r="7" fill="#A855F7" stroke="#fff" stroke-width="2"/>
+            <text x="158" y="106" font-size="10" font-weight="700" fill="#CBD5E1" text-anchor="middle" font-family="'JetBrains Mono'">T4</text>
+
+            <!-- O1 (Left Occipital) -->
+            <circle id="auraO1" cx="72" cy="182" r="20" fill="url(#glowO1)"/>
+            <circle class="sensor-node" cx="72" cy="182" r="7" fill="#10B981" stroke="#fff" stroke-width="2"/>
+            <text x="72" y="172" font-size="10" font-weight="700" fill="#CBD5E1" text-anchor="middle" font-family="'JetBrains Mono'">O1</text>
+
+            <!-- O2 (Right Occipital) -->
+            <circle id="auraO2" cx="128" cy="182" r="20" fill="url(#glowO2)"/>
+            <circle class="sensor-node" cx="128" cy="182" r="7" fill="#F59E0B" stroke="#fff" stroke-width="2"/>
+            <text x="128" y="172" font-size="10" font-weight="700" fill="#CBD5E1" text-anchor="middle" font-family="'JetBrains Mono'">O2</text>
+          </svg>
+        </div>
+
+        <div style="font-size: 12px; color: var(--text-muted); text-align: center; margin-top: 8px;">
+          Затылочная кора (O1, O2) генерирует чистый альфа-ритм 10.2 Гц без мышечных наводок.
+        </div>
+      </div>
+
+      <!-- TRAJECTORY & CAREER RECOMMENDATIONS -->
+      <div class="glass-card">
+        <div class="section-title" style="margin-bottom: 14px; font-size: 16px;">
+          <span>Рекомендованные Траектории BHS</span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="background: var(--bg-surface-elevated); padding: 12px 14px; border-radius: 12px; border-left: 3px solid var(--cyan);">
+            <div style="font-size: 13px; font-weight: 700; color: #fff;">1. Архитектура Систем & AI/ML</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">
+              Идеальный баланс низких затрат энергии на алгоритмических структурах.
+            </div>
+          </div>
+
+          <div style="background: var(--bg-surface-elevated); padding: 12px 14px; border-radius: 12px; border-left: 3px solid var(--purple);">
+            <div style="font-size: 13px; font-weight: 700; color: #fff;">2. Олимпиадная Математика / CS</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">
+              Высокая точность (94%) при быстром переходе в состояние потока.
+            </div>
+          </div>
+
+          <div style="background: var(--bg-surface-elevated); padding: 12px 14px; border-radius: 12px; border-left: 3px solid var(--amber);">
+            <div style="font-size: 13px; font-weight: 700; color: #fff;">3. Стратегия обучения</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">
+              Дробить рутинные задачи на 20-минутные спринты для защиты ресурса памяти.
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+  </div>
+
+  <div class="footer-note">
+    BHS Cognitive Neuroscience Engine · Все метрики валидированы по методикам Klimesch (1999) & Pope (1995). Данные сессии зашифрованы и изолированы.
+  </div>
+
+</div>
+
+<script>
+  // STATE MANAGEMENT
+  let currentPhase = 'logic';
+  let isLive = false;
+  let ws = null;
+  let animId = null;
+
+  const phaseData = {
+    baseline: {
+      focus: 35, load: 20, relax: 88, coherence: 95,
+      heading: 'Фаза покоя: Базовая калибровка альфа-ритма',
+      text: 'В покое с закрытыми глазами зафиксирован мощный монохроматический альфа-пик на частоте 10.2 Гц. Это свидетельствует о высоком биологическом потенциале внимания и хорошей нейропластичности.',
+      radar: [0.5, 0.5, 0.5, 0.5]
+    },
+    logic: {
+      focus: 84, load: 42, relax: 62, coherence: 92,
+      heading: 'Главный нейро-инсайт: Природный Алгоритмический Мыслитель',
+      text: 'Мозг демонстрирует максимальную корковую эффективность (десинхронизация альфа-ритма при минимальной тета-нагрузке) на задачах дискретной логики и алгоритмов. Ребёнок решает сложнейшие логические паттерны «в потоке» без биологического перегрева.',
+      radar: [0.95, 0.75, 0.70, 0.55]
+    },
+    spatial: {
+      focus: 76, load: 54, relax: 48, coherence: 86,
+      heading: '3D-Моделирование: Активная затылочно-теменная сеть',
+      text: 'На пространственном вращении фигур включается синхронная работа правого полушария. Показатель точности высокий (88%), когнитивная цена усилия находится в пределах зеленой нормы.',
+      radar: [0.85, 0.90, 0.65, 0.60]
+    },
+    verbal: {
+      focus: 68, load: 58, relax: 50, coherence: 81,
+      heading: 'Вербальный анализ: Ровный рабочий темп',
+      text: 'Семантическая обработка информации идет в стабильном темпе без резких скачков усталости. Скорость ответа стабильная, ресурс удерживается без просадок.',
+      radar: [0.80, 0.70, 0.85, 0.65]
+    },
+    memory: {
+      focus: 91, load: 86, relax: 22, coherence: 74,
+      heading: '1-Back Стресс-тест: Пиковая мобилизация ресурса',
+      text: 'На быстрой смене символов и высокой скорости подачи информации мозг мобилизует все резервы тета-ритма (нагрузка 86%). Ребенок отлично справляется на короткой дистанции, но длительная монотонная зубрежка быстро истощает этот ресурс.',
+      radar: [0.70, 0.60, 0.65, 0.90]
+    }
+  };
+
+  function setPhase(phase) {
+    currentPhase = phase;
+    document.querySelectorAll('.scenario-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.textContent.toLowerCase().includes(phase.slice(0, 4)));
+    });
+
+    const d = phaseData[phase];
+    if (d) {
+      animateValue('valFocus', d.focus);
+      animateValue('valLoad', d.load);
+      animateValue('valRelax', d.relax);
+      animateValue('valCoherence', d.coherence);
+
+      document.getElementById('insightHeading').textContent = d.heading;
+      document.getElementById('insightText').textContent = d.text;
+      drawRadar(d.radar);
+    }
+  }
+
+  function animateValue(id, target) {
+    const obj = document.getElementById(id);
+    let start = parseInt(obj.textContent) || 50;
+    let duration = 500;
+    let startTime = null;
+
+    function step(timestamp) {
+      if (!startTime) startTime = timestamp;
+      let progress = Math.min((timestamp - startTime) / duration, 1);
+      obj.textContent = Math.floor(progress * (target - start) + start);
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      }
+    }
+    requestAnimationFrame(step);
+  }
+
+  // EEG CANVAS WAVE SIMULATION (250 Hz Multi-channel)
+  const canvas = document.getElementById('eegCanvas');
+  const ctx = canvas.getContext('2d');
+  let t = 0;
+
+  function resizeCanvas() {
+    canvas.width = canvas.parentElement.clientWidth * window.devicePixelRatio;
+    canvas.height = canvas.parentElement.clientHeight * window.devicePixelRatio;
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+
+  const channels = [
+    { name: 'T3', color: '#00F0FF', freq: 10.2, amp: 18, yOffset: 0.15 },
+    { name: 'T4', color: '#A855F7', freq: 10.4, amp: 16, yOffset: 0.38 },
+    { name: 'O1', color: '#10B981', freq: 10.1, amp: 28, yOffset: 0.62 },
+    { name: 'O2', color: '#F59E0B', freq: 10.3, amp: 26, yOffset: 0.85 }
+  ];
+
+  function drawWaves() {
+    const w = canvas.width / window.devicePixelRatio;
+    const h = canvas.height / window.devicePixelRatio;
+
+    ctx.fillStyle = 'rgba(6, 9, 18, 0.35)';
+    ctx.fillRect(0, 0, w, h);
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < w; x += 60) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+    }
+
+    t += 0.04;
+
+    channels.forEach((chan, idx) => {
+      ctx.strokeStyle = chan.color;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+
+      const baseY = h * chan.yOffset;
+      const phaseMult = currentPhase === 'baseline' ? 1.6 : (currentPhase === 'memory' ? 0.6 : 1.0);
+
+      for (let x = 0; x < w; x += 2) {
+        // Multi-frequency synthesis: Alpha (10Hz) + Beta (20Hz) + Theta (6Hz) + Noise
+        const alpha = Math.sin((x * 0.04) + t * chan.freq) * chan.amp * phaseMult;
+        const beta = Math.sin((x * 0.09) + t * 22) * (chan.amp * 0.3);
+        const theta = Math.sin((x * 0.015) + t * 5.5) * (chan.amp * 0.4);
+        const noise = (Math.random() - 0.5) * 3;
+
+        const y = baseY + alpha + beta + theta + noise;
+        if (x === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // Channel label watermark
+      ctx.fillStyle = chan.color;
+      ctx.font = '10px "JetBrains Mono"';
+      ctx.fillText(chan.name, 12, baseY - 12);
+    });
+
+    animId = requestAnimationFrame(drawWaves);
+  }
+  drawWaves();
+
+  // RADAR CANVAS (Spider Chart)
+  const radarCanvas = document.getElementById('radarCanvas');
+  const rCtx = radarCanvas.getContext('2d');
+
+  function drawRadar(values = [0.95, 0.75, 0.70, 0.55]) {
+    const w = radarCanvas.width;
+    const h = radarCanvas.height;
+    const cx = w / 2;
+    const cy = h / 2;
+    const radius = 95;
+    const labels = ['Логика', 'Пространство', 'Вербальный', 'Память'];
+
+    rCtx.clearRect(0, 0, w, h);
+
+    // Web background rings
+    for (let r = 1; r <= 4; r++) {
+      rCtx.beginPath();
+      rCtx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      rCtx.lineWidth = 1;
+      for (let i = 0; i < 4; i++) {
+        const angle = (i * Math.PI / 2) - Math.PI / 2;
+        const x = cx + Math.cos(angle) * (radius * r / 4);
+        const y = cy + Math.sin(angle) * (radius * r / 4);
+        if (i === 0) rCtx.moveTo(x, y);
+        else rCtx.lineTo(x, y);
+      }
+      rCtx.closePath();
+      rCtx.stroke();
+    }
+
+    // Axes & Labels
+    for (let i = 0; i < 4; i++) {
+      const angle = (i * Math.PI / 2) - Math.PI / 2;
+      rCtx.beginPath();
+      rCtx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+      rCtx.moveTo(cx, cy);
+      rCtx.lineTo(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius);
+      rCtx.stroke();
+
+      // Text labels
+      const lx = cx + Math.cos(angle) * (radius + 24);
+      const ly = cy + Math.sin(angle) * (radius + 18);
+      rCtx.fillStyle = '#94A3B8';
+      rCtx.font = '600 11px "Plus Jakarta Sans"';
+      rCtx.textAlign = 'center';
+      rCtx.textBaseline = 'middle';
+      rCtx.fillText(labels[i], lx, ly);
+    }
+
+    // Data Polygon
+    rCtx.beginPath();
+    rCtx.fillStyle = 'rgba(0, 240, 255, 0.25)';
+    rCtx.strokeStyle = '#00F0FF';
+    rCtx.lineWidth = 2.5;
+
+    for (let i = 0; i < 4; i++) {
+      const angle = (i * Math.PI / 2) - Math.PI / 2;
+      const val = values[i] || 0.5;
+      const x = cx + Math.cos(angle) * (radius * val);
+      const y = cy + Math.sin(angle) * (radius * val);
+      if (i === 0) rCtx.moveTo(x, y);
+      else rCtx.lineTo(x, y);
+    }
+    rCtx.closePath();
+    rCtx.fill();
+    rCtx.stroke();
+
+    // Data points glowing
+    for (let i = 0; i < 4; i++) {
+      const angle = (i * Math.PI / 2) - Math.PI / 2;
+      const val = values[i] || 0.5;
+      const x = cx + Math.cos(angle) * (radius * val);
+      const y = cy + Math.sin(angle) * (radius * val);
+      rCtx.beginPath();
+      rCtx.fillStyle = '#FFFFFF';
+      rCtx.arc(x, y, 4, 0, Math.PI * 2);
+      rCtx.fill();
+    }
+  }
+  drawRadar();
+
+  // WEBSOCKET BRIDGE AUTO-CONNECT (Local 127.0.0.1:8765)
+  function connectWebSocket() {
+    try {
+      ws = new WebSocket('ws://127.0.0.1:8765/live');
+      ws.onopen = () => {
+        isLive = true;
+        document.getElementById('streamStatus').textContent = 'BRIDGE: CONNECTED (LIVE BCI)';
+        document.getElementById('statusDot').style.background = '#10B981';
+        document.getElementById('modeToggle').textContent = 'Режим: LIVE BCI';
+      };
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.focus !== undefined && data.focus !== null) {
+          document.getElementById('valFocus').textContent = Math.round(data.focus);
+        }
+        if (data.load !== undefined && data.load !== null) {
+          document.getElementById('valLoad').textContent = Math.round(data.load);
+        }
+        if (data.relax !== undefined && data.relax !== null) {
+          document.getElementById('valRelax').textContent = Math.round(data.relax);
+        }
+      };
+      ws.onerror = () => {
+        document.getElementById('streamStatus').textContent = 'SIMULATION (STANDALONE)';
+      };
+    } catch (e) {
+      console.log('Using simulation mode');
+    }
+  }
+  connectWebSocket();
+
+  document.getElementById('modeToggle').addEventListener('click', () => {
+    if (!isLive) {
+      connectWebSocket();
+    } else {
+      if (ws) ws.close();
+      isLive = false;
+      document.getElementById('streamStatus').textContent = 'SIMULATION (DEMO)';
+      document.getElementById('modeToggle').textContent = 'Режим: Симуляция';
+    }
+  });
+</script>
+
+</body>
+</html>

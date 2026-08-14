@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BHS · диагностика</title>
+<link rel="stylesheet" href="assets/theme.css">
+</head>
+<body>
+<div class="app">
+
+  <div class="card" id="setup">
+    <div class="setup">
+      <input id="student-name" placeholder="Имя и фамилия" autocomplete="off">
+      <select id="grade">
+        <option value="">Класс</option>
+        <option>7 класс</option><option>8 класс</option><option>9 класс</option>
+        <option>10 класс</option><option>11 класс</option>
+      </select>
+      <select id="lang">
+        <option value="ru">Русское отделение</option>
+        <option value="kk">Қазақ бөлімі</option>
+      </select>
+      <button class="option start" id="run">Начать</button>
+    </div>
+    <p class="hint" style="margin-top:14px" id="setup-hint">
+      Заполните анкету и наденьте ободок. Тест займёт около пяти минут.
+    </p>
+    <p class="hint" style="margin-top:8px" id="bridge-hint"></p>
+  </div>
+
+  <div class="card test-shell"><div id="screen" style="width:100%"></div></div>
+
+</div>
+<script src="assets/i18n.js"></script>
+<script src="assets/blocks.js"></script>
+<script src="assets/bridge-client.js"></script>
+<script src="assets/engine.js"></script>
+</body>
+</html>

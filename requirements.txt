@@ -1,0 +1,20 @@
+# базовые расчёты
+numpy==2.1.3
+scipy==1.14.1
+setuptools==75.6.0
+# мост
+fastapi==0.115.6
+uvicorn==0.34.0
+websockets==14.1
+# прибор
+pyneurosdk2==1.0.15  # ниже 1.0.15 нет семейства LEHeadband, прибор не находится
+brainflow==5.16.0
+pyobjc-framework-CoreBluetooth==12.2.2  # прямой Bluetooth-канал моста
+pyobjc-framework-libdispatch==12.2.2
+pyobjc-framework-Quartz==12.2.2  # зеркало окна штатного приложения
+# отчёт
+reportlab==4.2.5
+# тесты
+pytest==8.3.4
+httpx==0.28.1
+supabase==2.31.0

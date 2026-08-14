@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BHS · диагностика</title>
+<style>
+/* Тёмная тема живого монитора. Референс: Mind Tracker BCI v2.4.0,
+   скриншоты в app/docs/референс_mindtracker/. */
+:root {
+  --bg: #08090b;
+  --card: #131417;
+  --card-2: #191a1e;
+  --line: #26272c;
+  --text: #f2f3f5;
+  --muted: #8b8f98;
+  --focus: #c77df0;
+  --load: #6fa8f5;
+  --relax: #7fe06a;
+  --alert: #f0666b;
+  --radius: 26px;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: linear-gradient(135deg, #0d0d2b, #1a1a3a);
+  color: var(--text);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  padding: 22px;
+  display: flex;
+  justify-content: center;
+}
+
+.app { width: 100%; max-width: 860px; display: flex; flex-direction: column; gap: 16px; }
+
+.card {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  position: relative;
+  overflow: hidden;
+  transition: background 400ms ease;
+  backdrop-filter: blur(12px);
+}
+.card.alert { background: linear-gradient(160deg, #2a1113 0%, #131417 72%); }
+
+.topbar { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--relax); }
+.dot.off { background: var(--alert); }
+.topbar .muted { color: var(--muted); font-size: 13px; }
+.contact { display: flex; gap: 7px; margin-left: auto; align-items: center; }
+.chan {
+  font-size: 11px; color: var(--muted); padding: 4px 9px; border-radius: 9px;
+  background: var(--card-2); border: 1px solid var(--line);
+}
+.chan.good { color: var(--relax); border-color: rgba(127, 224, 106, .35); }
+.chan.bad { color: var(--alert); border-color: rgba(240, 102, 107, .35); }
+
+.segmented {
+  display: inline-flex; background: var(--card-2); border-radius: 999px; padding: 4px;
+}
+.segmented button {
+  border: 0; background: transparent; color: var(--muted); font-family: var(--font);
+  font-size: 14px; padding: 9px 26px; border-radius: 999px; cursor: pointer;
+}
+.segmented button.on { background: #2b2d33; color: var(--text); }
+
+.chart { width: 100%; height: 260px; display: block; }
+
+.metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; }
+.metric { padding: 6px 18px; border-left: 1px solid var(--line); }
+.metric:first-child { border-left: 0; }
+.value { font-size: 54px; font-weight: 300; letter-spacing: -1.5px; line-height: 1; }
+.value small { font-size: 20px; font-weight: 400; margin-left: 3px; }
+.label { color: var(--muted); font-size: 13px; margin-top: 8px; }
+.track { position: relative; height: 4px; background: var(--line); border-radius: 3px; margin-top: 16px; }
+.norm { position: absolute; top: 0; height: 4px; background: #ffffff; border-radius: 3px; opacity: .85; }
+.knob {
+  position: absolute; top: 50%; width: 13px; height: 13px; border-radius: 50%;
+  transform: translate(-50%, -50%); transition: left 400ms ease;
+}
+.metric.focus .value, .metric.focus .knob { color: var(--focus); background-color: var(--focus); }
+.metric.focus .value { background: none; color: var(--focus); }
+.metric.load .value { color: var(--load); }
+.metric.load .knob { background-color: var(--load); }
+.metric.relax .value { color: var(--relax); }
+.metric.relax .knob { background-color: var(--relax); }
+.metric.out .value, .metric.out .knob { color: var(--alert); background-color: var(--alert); }
+.metric.out .value { background: none; color: var(--alert); }
+
+.attention { color: var(--alert); font-size: 14px; margin-top: 14px; min-height: 18px; }
+
+.controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+button.action {
+  border: 1px solid var(--line); background: var(--card-2); color: var(--text);
+  font-family: var(--font); font-size: 14px; padding: 12px 22px; border-radius: 999px;
+  cursor: pointer;
+}
+button.action:hover { background: #24262b; }
+button.action.primary { background: #f2f3f5; color: #0b0c0e; border-color: transparent; }
+button.action:disabled { opacity: .4; cursor: default; }
+.phase { color: var(--muted); font-size: 13px; margin-left: auto; }
+.hint { color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+/* Экраны теста для ребёнка: крупно, спокойно, ничего лишнего */
+.test-shell { min-height: 84vh; display: flex; align-items: center; justify-content: center; }
+.task { text-align: center; width: 100%; }
+.prompt { font-size: 26px; font-weight: 300; margin-bottom: 26px; line-height: 1.35; }
+.stem { margin: 0 auto 30px; display: flex; justify-content: center; }
+.symbol { font-size: 96px; line-height: 1; color: var(--focus); }
+.options { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+.option {
+  min-width: 130px; padding: 20px 26px; border-radius: 20px; border: 1px solid var(--line);
+  background: var(--card); color: var(--text); font-size: 22px; font-family: var(--font);
+  cursor: pointer; transition: background 150ms ease;
+}
+.option:hover { background: var(--card-2); }
+.option.start { min-width: 200px; margin-top: 26px; background: #f2f3f5; color: #0b0c0e; border: 0; }
+.option:disabled { opacity: .35; cursor: default; }
+.message { text-align: center; font-size: 28px; font-weight: 300; line-height: 1.4; }
+.message .hint { font-size: 16px; color: var(--muted); margin-top: 14px; }
+.cross { font-size: 64px; color: var(--muted); margin-top: 28px; }
+.contact-row { display: flex; gap: 10px; justify-content: center; margin-top: 22px; }
+.setup { display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.setup input, .setup select {
+  background: var(--card-2); border: 1px solid var(--line); color: var(--text);
+  border-radius: 14px; padding: 13px 16px; font-size: 16px; font-family: var(--font);
+}
+
+/* Панель диагноста */
+.panel-grid { display: grid; grid-template-columns: 250px 1fr; gap: 16px; align-items: start; }
+.session-list { display: flex; flex-direction: column; gap: 8px; }
+.session-item {
+  text-align: left; border: 1px solid var(--line); background: var(--card-2);
+  color: var(--text); border-radius: 16px; padding: 13px 15px; cursor: pointer;
+  font-family: var(--font); font-size: 14px;
+}
+.session-item.on { border-color: var(--focus); }
+.session-item small { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; }
+.domain-row {
+  display: grid; grid-template-columns: 1.2fr 1fr 1fr 1.6fr; gap: 12px;
+  padding: 16px 0; border-top: 1px solid var(--line); align-items: center;
+}
+.domain-row:first-of-type { border-top: 0; }
+.domain-name { font-size: 17px; }
+.domain-num { font-size: 26px; font-weight: 300; }
+.domain-num small { font-size: 13px; color: var(--muted); display: block; margin-top: 3px; }
+.badge { display: inline-block; padding: 5px 12px; border-radius: 999px; font-size: 13px; }
+.badge.strong { background: rgba(127, 224, 106, .16); color: var(--relax); }
+.badge.solid { background: rgba(111, 168, 245, .16); color: var(--load); }
+.badge.costly { background: rgba(240, 102, 107, .16); color: var(--alert); }
+.section-title { font-size: 13px; color: var(--muted); text-transform: uppercase;
+  letter-spacing: .08em; margin-bottom: 14px; }
+.script-step { padding: 12px 0; border-top: 1px solid var(--line); font-size: 15px; line-height: 1.5; }
+.script-step b { font-weight: 500; }
+.script-step span { color: var(--muted); font-size: 13px; }
+
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="card" id="setup">
+    <div class="setup">
+      <input id="student-name" placeholder="Имя и фамилия" autocomplete="off">
+      <select id="grade">
+        <option value="">Класс</option>
+        <option>7 класс</option><option>8 класс</option><option>9 класс</option>
+        <option>10 класс</option><option>11 класс</option>
+      </select>
+      <select id="lang">
+        <option value="ru">Русское отделение</option>
+        <option value="kk">Қазақ бөлімі</option>
+      </select>
+      <button class="option start" id="run">Начать</button>
+    </div>
+    <p class="hint" style="margin-top:14px" id="setup-hint">
+      Заполните анкету и наденьте ободок. Тест займёт около пяти минут.
+    </p>
+    <p class="hint" style="margin-top:8px" id="bridge-hint"></p>
+  </div>
+
+  <div class="card test-shell"><div id="screen" style="width:100%"></div></div>
+
+</div>
+<script>
+/* --- i18n.js --- */
+const BHS_I18N = {
+  "ru": {
+    "contact_title": "Проверим, как сидит ободок",
+    "contact_hint": "Устройся удобно и посиди спокойно несколько секунд",
+    "contact_ok": "Контакт хороший, можно начинать",
+    "contact_bad": "Поправьте ободок, контакт слабый",
+    "start": "Начать",
+    "calib_closed": "Закрой глаза и спокойно посиди",
+    "calib_open": "Открой глаза и смотри на крестик",
+    "block_intro": "Дальше задачи. Отвечай спокойно, торопиться незачем",
+    "rest": "Небольшая пауза, смотри на крестик",
+    "wm_intro": "Сейчас пойдут символы. Отвечай, совпадает ли символ с предыдущим",
+    "done": "Готово, спасибо. Результат разберём вместе с родителем",
+    "bridge_down": "Работаем без прибора, задачи идут как обычно"
+  },
+  "kk": {
+    "contact_title": "Құрылғының отырысын тексерейік",
+    "contact_hint": "Ыңғайлы отырып, бірнеше секунд тыныш отыр",
+    "contact_ok": "Байланыс жақсы, бастауға болады",
+    "contact_bad": "Құрылғыны түзетіңіз, байланыс әлсіз",
+    "start": "Бастау",
+    "calib_closed": "Көзіңді жұмып, тыныш отыр",
+    "calib_open": "Көзіңді ашып, крестикке қара",
+    "block_intro": "Енді тапсырмалар. Асықпай жауап бер",
+    "rest": "Шағын үзіліс, крестикке қара",
+    "wm_intro": "Қазір таңбалар шығады. Таңба алдыңғысымен бірдей ме, соны айт",
+    "done": "Дайын, рахмет. Нәтижені ата-анаңмен бірге қараймыз",
+    "bridge_down": "Құрылғысыз жұмыс істеп жатырмыз, тапсырмалар әдеттегідей"
+  }
+};
+
+
+/* --- blocks.js --- */
+const BHS_BLOCKS = {
+  "numeric": [
+    {"id": "num-01", "prompt_ru": "Продолжите ряд: 2, 4, 8, 16, ?", "prompt_kk": "Қатарды жалғастырыңыз: 2, 4, 8, 16, ?", "options_ru": ["32", "24", "20", "64"], "options_kk": ["32", "24", "20", "64"], "correct": 0},
+    {"id": "num-02", "prompt_ru": "Продолжите ряд: 3, 6, 11, 18, ?", "prompt_kk": "Қатарды жалғастырыңыз: 3, 6, 11, 18, ?", "options_ru": ["27", "25", "24", "29"], "options_kk": ["27", "25", "24", "29"], "correct": 0},
+    {"id": "num-03", "prompt_ru": "Продолжите ряд: 1, 4, 9, 16, ?", "prompt_kk": "Қатарды жалғастырыңыз: 1, 4, 9, 16, ?", "options_ru": ["25", "20", "24", "36"], "options_kk": ["25", "20", "24", "36"], "correct": 0},
+    {"id": "num-04", "prompt_ru": "Продолжите ряд: 100, 50, 25, ?", "prompt_kk": "Қатарды жалғастырыңыз: 100, 50, 25, ?", "options_ru": ["12,5", "15", "10", "20"], "options_kk": ["12,5", "15", "10", "20"], "correct": 0},
+    {"id": "num-05", "prompt_ru": "Что больше: 3/8 или 0,4?", "prompt_kk": "Қайсысы үлкен: 3/8 әлде 0,4?", "options_ru": ["0,4", "3/8", "они равны", "нельзя сравнить"], "options_kk": ["0,4", "3/8", "тең", "салыстыруға болмайды"], "correct": 0},
+    {"id": "num-06", "prompt_ru": "Цена выросла на 20 процентов, потом упала на 20 процентов. Итог?", "prompt_kk": "Баға 20 пайызға өсті, сосын 20 пайызға түсті. Нәтиже?", "options_ru": ["ниже начальной", "выше начальной", "как в начале", "зависит от цены"], "options_kk": ["бастапқыдан төмен", "бастапқыдан жоғары", "бастапқыдай", "бағаға байланысты"], "correct": 0},
+    {"id": "num-07", "prompt_ru": "Продолжите ряд: 2, 3, 5, 8, 12, ?", "prompt_kk": "Қатарды жалғастырыңыз: 2, 3, 5, 8, 12, ?", "options_ru": ["17", "16", "15", "18"], "options_kk": ["17", "16", "15", "18"], "correct": 0},
+    {"id": "num-08", "prompt_ru": "Продолжите ряд: 81, 27, 9, ?", "prompt_kk": "Қатарды жалғастырыңыз: 81, 27, 9, ?", "options_ru": ["3", "6", "4", "1"], "options_kk": ["3", "6", "4", "1"], "correct": 0},
+    {"id": "num-09", "prompt_ru": "Три ручки стоят 240 тенге. Сколько стоят семь ручек?", "prompt_kk": "Үш қалам 240 теңге. Жеті қалам қанша?", "options_ru": ["560", "480", "600", "540"], "options_kk": ["560", "480", "600", "540"], "correct": 0},
+    {"id": "num-10", "prompt_ru": "Продолжите ряд: 1, 1, 2, 3, 5, ?", "prompt_kk": "Қатарды жалғастырыңыз: 1, 1, 2, 3, 5, ?", "options_ru": ["8", "7", "6", "10"], "options_kk": ["8", "7", "6", "10"], "correct": 0},
+    {"id": "num-11", "prompt_ru": "Половина от трети числа 90 это", "prompt_kk": "90 санының үштен бірінің жартысы", "options_ru": ["15", "30", "45", "10"], "options_kk": ["15", "30", "45", "10"], "correct": 0},
+    {"id": "num-12", "prompt_ru": "Продолжите ряд: 7, 14, 28, 56, ?", "prompt_kk": "Қатарды жалғастырыңыз: 7, 14, 28, 56, ?", "options_ru": ["112", "84", "96", "128"], "options_kk": ["112", "84", "96", "128"], "correct": 0},
+    {"id": "num-13", "prompt_ru": "В классе 24 ученика, треть из них девочки. Сколько мальчиков?", "prompt_kk": "Сыныпта 24 оқушы, үштен бірі қыз. Ұл бала нешеу?", "options_ru": ["16", "8", "12", "18"], "options_kk": ["16", "8", "12", "18"], "correct": 0},
+    {"id": "num-14", "prompt_ru": "Продолжите ряд: 2, 6, 12, 20, ?", "prompt_kk": "Қатарды жалғастырыңыз: 2, 6, 12, 20, ?", "options_ru": ["30", "28", "26", "32"], "options_kk": ["30", "28", "26", "32"], "correct": 0},
+    {"id": "num-15", "prompt_ru": "Поезд идёт 240 км за 3 часа. Сколько пройдёт за 5 часов?", "prompt_kk": "Пойыз 3 сағатта 240 км жүреді. 5 сағатта қанша?", "options_ru": ["400", "360", "480", "320"], "options_kk": ["400", "360", "480", "320"], "correct": 0},
+    {"id": "num-16", "prompt_ru": "Продолжите ряд: 64, 32, 16, 8, ?", "prompt_kk": "Қатарды жалғастырыңыз: 64, 32, 16, 8, ?", "options_ru": ["4", "2", "6", "5"], "options_kk": ["4", "2", "6", "5"], "correct": 0},
+    {"id": "num-17", "prompt_ru": "Сколько процентов составляет 18 от 60?", "prompt_kk": "18 саны 60-тың неше пайызы?", "options_ru": ["30", "25", "35", "40"], "options_kk": ["30", "25", "35", "40"], "correct": 0},
+    {"id": "num-18", "prompt_ru": "Продолжите ряд: 5, 10, 20, 35, ?", "prompt_kk": "Қатарды жалғастырыңыз: 5, 10, 20, 35, ?", "options_ru": ["55", "50", "60", "45"], "options_kk": ["55", "50", "60", "45"], "correct": 0}
+  ],
+  "verbal": [
+    {"id": "ver-01", "prompt_ru": "Найдите лишнее слово", "prompt_kk": "Артық сөзді табыңыз", "options_ru": ["дуб", "клён", "берёза", "ромашка"], "options_kk": ["емен", "үйеңкі", "қайың", "түймедақ"], "correct": 3},
+    {"id": "ver-02", "prompt_ru": "Найдите лишнее слово", "prompt_kk": "Артық сөзді табыңыз", "options_ru": ["минута", "час", "километр", "сутки"], "options_kk": ["минут", "сағат", "километр", "тәулік"], "correct": 2},
+    {"id": "ver-03", "prompt_ru": "Синоним слова «стремительный»", "prompt_kk": "«Жедел» сөзінің синонимі", "options_ru": ["быстрый", "тяжёлый", "далёкий", "тихий"], "options_kk": ["жылдам", "ауыр", "алыс", "тыныш"], "correct": 0},
+    {"id": "ver-04", "prompt_ru": "Антоним слова «щедрый»", "prompt_kk": "«Жомарт» сөзінің антонимі", "options_ru": ["скупой", "добрый", "громкий", "смелый"], "options_kk": ["сараң", "мейірімді", "қатты", "батыл"], "correct": 0},
+    {"id": "ver-05", "prompt_ru": "Врач относится к больнице, как учитель к", "prompt_kk": "Дәрігер ауруханаға қандай болса, мұғалім неге сондай", "options_ru": ["школе", "книге", "уроку", "ученику"], "options_kk": ["мектепке", "кітапқа", "сабаққа", "оқушыға"], "correct": 0},
+    {"id": "ver-06", "prompt_ru": "Найдите лишнее слово", "prompt_kk": "Артық сөзді табыңыз", "options_ru": ["радость", "печаль", "стол", "гнев"], "options_kk": ["қуаныш", "мұң", "үстел", "ашу"], "correct": 2},
+    {"id": "ver-07", "prompt_ru": "Слово относится к предложению, как кирпич к", "prompt_kk": "Сөз сөйлемге қандай болса, кірпіш неге сондай", "options_ru": ["стене", "глине", "дому", "заводу"], "options_kk": ["қабырғаға", "балшыққа", "үйге", "зауытқа"], "correct": 0},
+    {"id": "ver-08", "prompt_ru": "Синоним слова «редкий»", "prompt_kk": "«Сирек» сөзінің синонимі", "options_ru": ["нечастый", "мелкий", "простой", "старый"], "options_kk": ["сирек кездесетін", "ұсақ", "қарапайым", "ескі"], "correct": 0},
+    {"id": "ver-09", "prompt_ru": "Найдите лишнее слово", "prompt_kk": "Артық сөзді табыңыз", "options_ru": ["алматы", "астана", "шымкент", "казахстан"], "options_kk": ["алматы", "астана", "шымкент", "қазақстан"], "correct": 3},
+    {"id": "ver-10", "prompt_ru": "Антоним слова «временный»", "prompt_kk": "«Уақытша» сөзінің антонимі", "options_ru": ["постоянный", "быстрый", "новый", "долгий"], "options_kk": ["тұрақты", "жылдам", "жаңа", "ұзақ"], "correct": 0},
+    {"id": "ver-11", "prompt_ru": "Художник относится к картине, как композитор к", "prompt_kk": "Суретші суретке қандай болса, композитор неге сондай", "options_ru": ["музыке", "скрипке", "залу", "нотам"], "options_kk": ["музыкаға", "скрипкаға", "залға", "нотаға"], "correct": 0},
+    {"id": "ver-12", "prompt_ru": "Найдите лишнее слово", "prompt_kk": "Артық сөзді табыңыз", "options_ru": ["железо", "медь", "стекло", "золото"], "options_kk": ["темір", "мыс", "шыны", "алтын"], "correct": 2},
+    {"id": "ver-13", "prompt_ru": "Синоним слова «упорный»", "prompt_kk": "«Табанды» сөзінің синонимі", "options_ru": ["настойчивый", "весёлый", "точный", "громкий"], "options_kk": ["қайсар", "көңілді", "дәл", "қатты"], "correct": 0},
+    {"id": "ver-14", "prompt_ru": "Слово «беглый» ближе всего к", "prompt_kk": "«Жүгірмелі» сөзі неге жақын", "options_ru": ["поверхностный", "глубокий", "тяжёлый", "яркий"], "options_kk": ["үстірт", "терең", "ауыр", "жарқын"], "correct": 0},
+    {"id": "ver-15", "prompt_ru": "Найдите лишнее слово", "prompt_kk": "Артық сөзді табыңыз", "options_ru": ["понедельник", "среда", "январь", "пятница"], "options_kk": ["дүйсенбі", "сәрсенбі", "қаңтар", "жұма"], "correct": 2},
+    {"id": "ver-16", "prompt_ru": "Антоним слова «прозрачный»", "prompt_kk": "«Мөлдір» сөзінің антонимі", "options_ru": ["мутный", "твёрдый", "холодный", "лёгкий"], "options_kk": ["лай", "қатты", "суық", "жеңіл"], "correct": 0},
+    {"id": "ver-17", "prompt_ru": "Книга относится к чтению, как еда к", "prompt_kk": "Кітап оқуға қандай болса, тамақ неге сондай", "options_ru": ["питанию", "кухне", "тарелке", "магазину"], "options_kk": ["тамақтануға", "асханаға", "тәрелкеге", "дүкенге"], "correct": 0},
+    {"id": "ver-18", "prompt_ru": "Найдите лишнее слово", "prompt_kk": "Артық сөзді табыңыз", "options_ru": ["слышать", "смотреть", "думать", "нюхать"], "options_kk": ["есту", "көру", "ойлау", "иіскеу"], "correct": 2}
+  ],
+  "spatial": {"generator": "rotation", "count": 14, "prompt_ru": "Какая фигура получится, если повернуть верхнюю по часовой стрелке?", "prompt_kk": "Жоғарғы фигураны сағат тілімен бұрсақ, қайсысы шығады?"},
+  "working_memory": {"generator": "nback", "count": 26, "prompt_ru": "Символ такой же, как предыдущий?", "prompt_kk": "Таңба алдыңғысымен бірдей ме?", "options_ru": ["да", "нет"], "options_kk": ["иә", "жоқ"]}
+};
+
+
+/* --- bridge-client.js --- */
+const BRIDGE = "http://127.0.0.1:8765";
+
+window.BHS_BRIDGE_DOWN = false;
+
+async function bridgeEvent(kind, payload) {
+  try {
+    const response = await fetch(BRIDGE + "/event", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({kind: kind, payload: payload || {}})
+    });
+    return await response.json();
+  } catch (error) {
+    // мост недоступен: тест продолжается, сессия останется без нейро-слоя
+    window.BHS_BRIDGE_DOWN = true;
+    return null;
+  }
+}
+
+async function bridgeStatus() {
+  try {
+    const response = await fetch(BRIDGE + "/status");
+    return await response.json();
+  } catch (error) {
+    window.BHS_BRIDGE_DOWN = true;
+    return {connected: false, contact: {}};
+  }
+}
+
+async function bridgeSessionStart(sessionId, meta) {
+  // возвращает: {ok:true, sessionId} | {ok:false, error} | {ok:true, offline:true}
+  // анкету обязательно класть в оба запроса: она стояла только в повторной
+  // попытке, и на нормальном старте мост получал пустое имя. Все визиты
+  // 13.08 записались как «без имени», различить их в панели было нечем
+  const body0 = Object.assign({session_id: sessionId, out_dir: "data",
+                               force: false}, meta || {});
+  try {
+    const response = await fetch(BRIDGE + "/session/start", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(body0)
+    });
+    let body = await response.json();
+    if (response.status === 409) {
+      // страницу перезагрузили посреди теста: старая запись висит на мосту.
+      // Закрываем её (данные сохранятся файлом) и стартуем заново сами
+      await fetch(BRIDGE + "/session/stop", {method: "POST"}).catch(function(){});
+      const retry = await fetch(BRIDGE + "/session/start", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(Object.assign(
+          {session_id: sessionId, out_dir: "data", force: false}, meta || {}))
+      });
+      body = await retry.json();
+      if (!retry.ok) {
+        return {ok: false, error: body.detail || ("мост отказал, код " + retry.status)};
+      }
+      return {ok: true, sessionId: body.session_id || sessionId};
+    }
+    if (!response.ok) {
+      return {ok: false, error: body.detail || ("мост отказал, код " + response.status)};
+    }
+    return {ok: true, sessionId: body.session_id || sessionId};
+  } catch (error) {
+    // моста нет вовсе: тест идёт без нейро-слоя, это штатная деградация
+    window.BHS_BRIDGE_DOWN = true;
+    return {ok: true, offline: true, sessionId: sessionId};
+  }
+}
+
+async function bridgeEnsureRecording(sessionId, meta) {
+  // Мост может перезапуститься посреди теста: упасть, быть обновлённым руками.
+  // Тогда он остаётся жив и продолжает принимать метки, но запись выключена,
+  // и сигнал молча уходит в никуда. Ребёнок доходит до конца, а визит остаётся
+  // без нейро-слоя, и узнают об этом только на разборе. Поэтому перед каждым
+  // блоком спрашиваем, идёт ли запись, и поднимаем её обратно.
+  try {
+    const status = await bridgeStatus();
+    if (status.running) { return false; }
+    const response = await fetch(BRIDGE + "/session/start", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(Object.assign(
+        {session_id: sessionId, out_dir: "data", force: true}, meta || {}))
+    });
+    if (response.ok) { console.warn("запись возобновлена: мост перезапускался"); }
+    return response.ok;
+  } catch (error) {
+    return false;   // моста нет вовсе, это штатная деградация
+  }
+}
+
+async function bridgeCalibrationFinish() {
+  try {
+    const response = await fetch(BRIDGE + "/calibration/finish", {method: "POST"});
+    return await response.json();
+  } catch (error) {
+    return null;
+  }
+}
+
+async function bridgeSessionStop() {
+  try {
+    const response = await fetch(BRIDGE + "/session/stop", {method: "POST"});
+    return await response.json();
+  } catch (error) {
+    return null;
+  }
+}
+
+
+/* --- engine.js --- */
+/* Движок теста: калибровка и четыре блока задач.
+   Ребёнок своего результата не видит ни на одном экране. */
+
+const CALIB_CLOSED_S = 45;
+const CALIB_OPEN_S = 20;
+const BLOCK_SECONDS = 45;
+const REST_SECONDS = 8;
+const WM_STIMULUS_MS = 1400;
+const DOMAIN_ORDERS = [
+  ["numeric", "spatial", "verbal", "working_memory"],
+  ["spatial", "verbal", "working_memory", "numeric"],
+  ["verbal", "working_memory", "numeric", "spatial"],
+  ["working_memory", "numeric", "spatial", "verbal"]
+];
+const WM_SYMBOLS = ["◆", "●", "▲", "■", "★", "✦"];
+const GRID = 4;
+
+let lang = "ru";
+let sessionId = null;
+let sessionMeta = null;
+
+function t(key) { return BHS_I18N[lang][key]; }
+function screen() { return document.getElementById("screen"); }
+function wait(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+function orderForSession(id) {
+  let sum = 0;
+  for (const ch of id) { sum += ch.charCodeAt(0); }
+  return DOMAIN_ORDERS[sum % DOMAIN_ORDERS.length];
+}
+
+/* --- процедурные фигуры для пространственного блока --- */
+
+function randomShape() {
+  const cells = [[1, 1]];
+  const steps = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+  while (cells.length < 5) {
+    const base = cells[Math.floor(Math.random() * cells.length)];
+    const step = steps[Math.floor(Math.random() * steps.length)];
+    const next = [base[0] + step[0], base[1] + step[1]];
+    const inside = next[0] >= 0 && next[0] < GRID && next[1] >= 0 && next[1] < GRID;
+    const taken = cells.some(c => c[0] === next[0] && c[1] === next[1]);
+    if (inside && !taken) { cells.push(next); }
+  }
+  return cells;
+}
+
+function rotate(cells) { return cells.map(([r, c]) => [c, GRID - 1 - r]); }
+function mirror(cells) { return cells.map(([r, c]) => [r, GRID - 1 - c]); }
+function normalize(cells) {
+  const minR = Math.min(...cells.map(c => c[0]));
+  const minC = Math.min(...cells.map(c => c[1]));
+  return cells.map(([r, c]) => [r - minR, c - minC]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+}
+function sameShape(a, b) {
+  return JSON.stringify(normalize(a)) === JSON.stringify(normalize(b));
+}
+
+function shapeSvg(cells, size) {
+  const step = size / GRID;
+  const rects = normalize(cells).map(([r, c]) =>
+    `<rect x="${c * step + 2}" y="${r * step + 2}" width="${step - 4}" height="${step - 4}" rx="4" fill="#c77df0"/>`
+  ).join("");
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${rects}</svg>`;
+}
+
+function makeRotationTask(index) {
+  const base = randomShape();
+  const answer = rotate(base);
+  const options = [answer];
+  const candidates = [mirror(answer), rotate(rotate(base)), randomShape(), mirror(base)];
+  for (const candidate of candidates) {
+    if (options.length >= 4) { break; }
+    if (!options.some(o => sameShape(o, candidate))) { options.push(candidate); }
+  }
+  while (options.length < 4) { options.push(randomShape()); }
+  return {
+    id: "spa-" + index,
+    stem: shapeSvg(base, 130),
+    prompt: BHS_BLOCKS.spatial["prompt_" + lang],
+    options: options.map(cells => shapeSvg(cells, 96)),
+    correct: 0
+  };
+}
+
+/* --- поток символов для блока рабочей памяти --- */
+
+function makeNbackStream(count) {
+  const stream = [WM_SYMBOLS[Math.floor(Math.random() * WM_SYMBOLS.length)]];
+  for (let i = 1; i < count; i++) {
+    const repeat = Math.random() < 0.35;
+    stream.push(repeat ? stream[i - 1]
+      : WM_SYMBOLS[Math.floor(Math.random() * WM_SYMBOLS.length)]);
+  }
+  return stream;
+}
+
+/* --- показ задания --- */
+
+function shuffled(options) {
+  const indexed = options.map((text, index) => ({text: text, index: index}));
+  for (let i = indexed.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indexed[i], indexed[j]] = [indexed[j], indexed[i]];
+  }
+  return indexed;
+}
+
+function showItem(task) {
+  return new Promise(resolve => {
+    const options = shuffled(task.options);
+    screen().innerHTML = `
+      <div class="task">
+        <p class="prompt">${task.prompt}</p>
+        ${task.stem ? `<div class="stem">${task.stem}</div>` : ""}
+        <div class="options">
+          ${options.map((o, i) => `<button class="option" data-i="${i}">${o.text}</button>`).join("")}
+        </div>
+      </div>`;
+    screen().querySelectorAll(".option").forEach(button => {
+      button.addEventListener("click", () => resolve(options[Number(button.dataset.i)].index));
+    });
+  });
+}
+
+function showMessage(text, extra) {
+  screen().innerHTML = `<div class="message"><p>${text}</p>${extra || ""}</div>`;
+}
+
+function showCross() {
+  screen().innerHTML = `<div class="message"><div class="cross">+</div></div>`;
+}
+
+/* --- блоки --- */
+
+async function runFixedBlock(domain) {
+  const bank = BHS_BLOCKS[domain];
+  const started = performance.now();
+  let index = 0;
+  while (performance.now() - started < BLOCK_SECONDS * 1000) {
+    const item = bank[index % bank.length];
+    const task = {
+      id: item.id,
+      prompt: item["prompt_" + lang],
+      options: item["options_" + lang],
+      correct: item.correct
+    };
+    const shownAt = performance.now();
+    const picked = await showItem(task);
+    await bridgeEvent("trial", {
+      domain: domain, index: index, stimulus_id: item.id,
+      correct: picked === item.correct,
+      rt_ms: Math.round(performance.now() - shownAt)
+    });
+    index += 1;
+  }
+}
+
+async function runSpatialBlock() {
+  const started = performance.now();
+  let index = 0;
+  while (performance.now() - started < BLOCK_SECONDS * 1000) {
+    const task = makeRotationTask(index);
+    const shownAt = performance.now();
+    const picked = await showItem(task);
+    await bridgeEvent("trial", {
+      domain: "spatial", index: index, stimulus_id: task.id,
+      correct: picked === task.correct,
+      rt_ms: Math.round(performance.now() - shownAt)
+    });
+    index += 1;
+  }
+}
+
+async function runWorkingMemoryBlock() {
+  const config = BHS_BLOCKS.working_memory;
+  showMessage(t("wm_intro"));
+  await wait(2500);
+  const stream = makeNbackStream(config.count * 3);
+  const started = performance.now();
+  let index = 1;
+  while (performance.now() - started < BLOCK_SECONDS * 1000 && index < stream.length) {
+    const symbol = stream[index];
+    const isRepeat = symbol === stream[index - 1];
+    const task = {
+      id: "wm-" + index,
+      prompt: config["prompt_" + lang],
+      stem: `<div class="symbol">${symbol}</div>`,
+      options: config["options_" + lang],
+      correct: isRepeat ? 0 : 1
+    };
+    const shownAt = performance.now();
+    const picked = await Promise.race([showItem(task), wait(WM_STIMULUS_MS).then(() => -1)]);
+    await bridgeEvent("trial", {
+      domain: "working_memory", index: index, stimulus_id: task.id,
+      correct: picked === task.correct,
+      rt_ms: Math.round(performance.now() - shownAt)
+    });
+    index += 1;
+  }
+}
+
+async function runBlock(domain) {
+  // сторож: если мост перезапускался, запись сейчас выключена и блок
+  // ушёл бы в пустоту. Поднимаем её, теряя в худшем случае один блок
+  await bridgeEnsureRecording(sessionId, sessionMeta);
+  await bridgeEvent("block_start", {domain: domain});
+  if (domain === "spatial") { await runSpatialBlock(); }
+  else if (domain === "working_memory") { await runWorkingMemoryBlock(); }
+  else { await runFixedBlock(domain); }
+  await bridgeEvent("block_end", {domain: domain});
+}
+
+/* --- проверка контакта и калибровка --- */
+
+async function waitForContact() {
+  showMessage(t("contact_title"), `<p class="hint">${t("contact_hint")}</p>
+    <div class="contact-row" id="contact-row"></div>
+    <button class="option start" id="go" disabled>${t("start")}</button>`);
+  const row = document.getElementById("contact-row");
+  const go = document.getElementById("go");
+  const tick = async () => {
+    const status = await bridgeStatus();
+    const contact = status.contact || {};
+    const names = Object.keys(contact);
+    row.innerHTML = names.map(name =>
+      `<span class="chan ${contact[name] >= 0.6 ? "good" : "bad"}">${name}</span>`).join("");
+    const allGood = names.length === 4 && names.every(n => contact[n] >= 0.6);
+    // мост недоступен: не держим ребёнка на экране контакта, тест идёт без нейро
+    go.disabled = !(allGood || window.BHS_BRIDGE_DOWN);
+    if (window.BHS_BRIDGE_DOWN) { row.innerHTML = `<span class="hint">${t("bridge_down")}</span>`; }
+  };
+  await tick();
+  const timer = setInterval(tick, 1000);
+  await new Promise(resolve => go.addEventListener("click", resolve));
+  clearInterval(timer);
+}
+
+async function runCalibration() {
+  await bridgeEvent("calibration_eyes_closed_start", {});
+  showMessage(t("calib_closed"));
+  await wait(CALIB_CLOSED_S * 1000);
+  await bridgeEvent("calibration_eyes_closed_end", {});
+
+  await bridgeEvent("calibration_eyes_open_start", {});
+  showMessage(t("calib_open"), `<div class="cross">+</div>`);
+  await wait(CALIB_OPEN_S * 1000);
+  await bridgeEvent("calibration_eyes_open_end", {});
+  await bridgeCalibrationFinish();
+}
+
+/* --- сценарий целиком --- */
+
+let sessionRunning = false;
+
+async function showBridgeState() {
+  // менеджер открывает страницу с сайта, а прибор висит на его же ноутбуке.
+  // Если мост не поднят, тест молча пройдёт без нейро-слоя, и узнают об этом
+  // только на разборе. Поэтому состояние моста видно до начала теста
+  const hint = document.getElementById("bridge-hint");
+  if (!hint) { return; }
+  const status = await bridgeStatus();
+  if (window.BHS_BRIDGE_DOWN || !status.streaming) {
+    hint.innerHTML = "<b>Прибор не подключён.</b> Запустите СТАРТ на этом "
+      + "ноутбуке и откройте Mind Tracker. Сейчас тест запишет только ответы.";
+    hint.style.color = "#F0666B";
+    return;
+  }
+  const place = status.operator_name || status.operator || "";
+  hint.textContent = "Прибор на связи" + (place ? ", рабочее место: " + place : "")
+    + ". Батарея " + (status.battery || 0) + "%.";
+  hint.style.color = "";
+}
+
+async function runSession() {
+  // повторный клик по «Начать» создавал гонку: один старт проходил,
+  // ошибка соседнего затирала экран, тест зависал с живой записью
+  if (sessionRunning) { return; }
+  const studentName = document.getElementById("student-name").value.trim();
+  const grade = document.getElementById("grade").value;
+  lang = document.getElementById("lang").value;
+  if (!studentName) {
+    document.getElementById("setup-hint").textContent =
+      "Напишите имя и фамилию, без этого карточка не сохранится.";
+    return;
+  }
+  sessionRunning = true;
+  const runButton = document.getElementById("run");
+  runButton.disabled = true;
+  sessionId = "";   // имя сессии выдаёт мост, оно техническое
+
+  sessionMeta = {student_name: studentName, grade: grade, track: lang};
+  const started = await bridgeSessionStart(sessionId, sessionMeta);
+  if (!started.ok) {
+    // запись не пошла: честно останавливаемся, иначе визит пройдёт впустую
+    showMessage("Запись не запустилась: " + started.error,
+      '<p class="hint">Позовите специалиста. Тест можно начать заново.</p>');
+    sessionRunning = false;
+    runButton.disabled = false;
+    return;
+  }
+  sessionId = started.sessionId || sessionId;
+  document.getElementById("setup").hidden = true;
+  await bridgeEvent("session_start", {session_id: sessionId, lang: lang});
+
+  await waitForContact();
+  await runCalibration();
+
+  showMessage(t("block_intro"));
+  await wait(3000);
+
+  for (const domain of orderForSession(sessionId)) {
+    await runBlock(domain);
+    await bridgeEvent("rest_start", {});
+    showMessage(t("rest"), `<div class="cross">+</div>`);
+    await wait(REST_SECONDS * 1000);
+    await bridgeEvent("rest_end", {});
+  }
+
+  await bridgeEvent("session_end", {});
+  const saved = await bridgeSessionStop();
+  showMessage(t("done"));
+  if (saved) { console.log("запись сохранена", saved); }
+}
+
+document.getElementById("run").addEventListener("click", runSession);
+showBridgeState();
+setInterval(showBridgeState, 5000);
+
+</script>
+</body>
+</html>
