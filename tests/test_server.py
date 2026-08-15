@@ -185,3 +185,38 @@ def test_generated_session_id_carries_workplace_and_date():
 def test_explicit_session_id_is_kept_as_is():
     from bridge.server import _check_session_id
     assert _check_session_id("visit-161824") == "visit-161824"
+
+
+def test_visit_without_signal_still_reaches_the_panel(tmp_path, monkeypatch):
+    """Ободок не надели, а тест ребёнок прошёл: визит терять нельзя.
+
+    Боевой случай 15.08: расчёт профиля падал на пустом сигнале, выгрузка
+    была вложена в него, и карточка не появлялась в панели вовсе. Менеджер
+    видел, что ребёнок отвечал, а визита не было.
+    """
+    import bridge.server as server
+    client, recorder, clock = _client()
+
+    sent = {}
+
+    def fake_push(manager, meta, profile, report, html_path):
+        sent["profile"] = profile
+        sent["meta"] = meta
+        return "визит в облаке"
+
+    monkeypatch.setattr("bridge.cloud.push_visit", fake_push)
+
+    client.post("/session/start", json={"session_id": "без-сигнала",
+                                        "out_dir": str(tmp_path),
+                                        "student_name": "Ая Серik"})
+    for index in range(3):
+        client.post("/event", json={"kind": "trial", "payload": {
+            "domain": "verbal", "correct": index != 1, "rt_ms": 900 + index}})
+    body = client.post("/session/stop").json()
+
+    assert body["cloud"] == "визит в облаке", body
+    assert sent["profile"]["has_eeg"] is False
+    assert sent["profile"]["behavior"]["verbal"]["n_trials"] == 3
+    assert sent["meta"]["student_name"] == "Ая Серik"
+    # причина отсутствия нейро-слоя должна быть названа, а не умолчана
+    assert sent["profile"]["quality"]["reasons"]

@@ -63,6 +63,37 @@ class SessionIn(BaseModel):
     track: str = "ru"
 
 
+def _behaviour_only_profile(recorder, lang: str) -> dict:
+    """Профиль по одним ответам, когда сигнала нет или он не разобрался.
+
+    Визит с ответами это не пустой визит: точность и время по четырём типам
+    задач сами по себе материал для разбора. Терять его из-за того, что
+    ободок не надели, нельзя.
+    """
+    trials: dict[str, list] = {}
+    for event in recorder.events:
+        if event["kind"] == "trial":
+            payload = event.get("payload") or {}
+            domain = payload.get("domain")
+            if domain:
+                trials.setdefault(domain, []).append(payload)
+    behavior = {d: block_behavior(trials.get(d, [])) for d in DOMAINS}
+    return {
+        "session_id": recorder.session_id,
+        "lang": lang,
+        "method_version": "поведение-1.0",
+        "iaf": None,
+        "has_eeg": False,
+        "quality": {"reasons": ["сигнал не записан, разбор только по ответам"]},
+        "domains": [{"domain": d, "accuracy": behavior[d]["accuracy"],
+                     "median_rt_ms": behavior[d]["median_rt_ms"],
+                     "cost": None, "efficiency": None,
+                     "attention_slope": None} for d in DOMAINS],
+        "behavior": behavior,
+        "neuro": None,
+    }
+
+
 def create_app(recorder, clock, device, realtime=None, mirror=None,
                app_db=None) -> FastAPI:
     app = FastAPI(title="BHS neuro bridge")
@@ -265,16 +296,27 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
             with open(mirror_path, "w", encoding="utf-8") as fh:
                 json.dump(mirror_profile, fh, ensure_ascii=False, indent=2)
             result["mirror_profile"] = mirror_path
+        # Профиль, отчёт и выгрузка идут тремя независимыми шагами.
+        # Раньше выгрузка была вложена в расчёт профиля, и визит без сигнала
+        # не доезжал до панели вовсе: менеджер видел, что ребёнок прошёл тест,
+        # а карточки не было. Ответы при этом записаны и разбор по ним возможен.
+        profile = None
         try:
             profile = analyze(npz_path, events_path,
                               {"session_id": rec.session_id, "lang": state["lang"]})
-            profile_path = os.path.join(state["out_dir"], f"{rec.session_id}.profile.json")
-            with open(profile_path, "w", encoding="utf-8") as fh:
-                json.dump(profile, fh, ensure_ascii=False, indent=2)
-            result["profile"] = profile_path
+        except Exception as error:
+            result["profile_error"] = str(error)
+            profile = _behaviour_only_profile(rec, state["lang"])
+        profile_path = os.path.join(state["out_dir"], f"{rec.session_id}.profile.json")
+        with open(profile_path, "w", encoding="utf-8") as fh:
+            json.dump(profile, fh, ensure_ascii=False, indent=2)
+        result["profile"] = profile_path
 
-            # полный отчёт для панели: считается здесь же, пока семья идёт
-            # от теста к разбору
+        # полный отчёт для панели: считается здесь же, пока семья идёт
+        # от теста к разбору
+        report = {}
+        report_html = ""
+        if profile.get("has_eeg"):
             try:
                 from analyzer.report_data import build_report_data
                 from report.build_html import build as build_report_page
@@ -293,22 +335,20 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
                                      (meta.get("student_name"),
                                       meta.get("grade"),
                                       meta.get("started_at")) if part)
-                build_report_page(report, f"web/reports/{rec.session_id}.html",
-                                  caption or rec.session_id)
+                report_html = f"web/reports/{rec.session_id}.html"
+                build_report_page(report, report_html, caption or rec.session_id)
                 result["report"] = f"reports/{rec.session_id}.html"
-                # облачная копия: панель менеджера видит визит сразу
-                try:
-                    from bridge.cloud import push_visit
-                    result["cloud"] = push_visit(
-                        manager, meta, profile, report,
-                        f"web/reports/{rec.session_id}.html")
-                except Exception as cloud_error:
-                    result["cloud"] = "офлайн: " + str(cloud_error)[:80]
             except Exception as report_error:
                 result["report_error"] = str(report_error)
-        except Exception as error:
-            # сессия могла оборваться на середине: сырьё сохранено, профиль позже
-            result["profile_error"] = str(error)
+                report_html = ""
+
+        # облачная копия: панель менеджера видит визит сразу. Идёт всегда,
+        # даже без нейро-слоя: карточка с ответами лучше пропавшего визита
+        try:
+            from bridge.cloud import push_visit
+            result["cloud"] = push_visit(manager, meta, profile, report, report_html)
+        except Exception as cloud_error:
+            result["cloud"] = "офлайн: " + str(cloud_error)[:120]
         return result
 
     class ManagerIn(BaseModel):
