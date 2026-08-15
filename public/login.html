@@ -150,6 +150,11 @@ function esc(value) {
 </script>
 <script src="config.js"></script>
 <script>
+/* Ободок держит канал всего полминуты после снятия с головы: так устроены
+   сам прибор и штатное приложение. Поэтому между детьми связь почти всегда
+   надо поднимать заново, и говорить об этом надо прямо, а не «не найден». */
+const RECONNECT = "Переподключите его в Mind Tracker BCI, вкладка «Мониторинг».";
+
 function setState(text, kind){
   const box = document.getElementById("state");
   box.textContent = text || "";
@@ -174,7 +179,7 @@ async function checkEquipment(){
   setCheck("c-device", status.connected,
     status.connected
       ? "Ободок на связи, батарея " + (status.battery || 0) + "%"
-      : "Ободок не найден: " + (status.device_error || "включите его"));
+      : "Ободок не на связи. " + RECONNECT);
 }
 
 document.getElementById("enter").addEventListener("click", async () => {

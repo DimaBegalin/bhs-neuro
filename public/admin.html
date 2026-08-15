@@ -199,8 +199,16 @@ async function checkEquipment(){
   setCheck("c-app", true, "Программа работает");
   setCheck("c-device", status.connected,
     status.connected ? "Ободок готов, батарея " + (status.battery || 0) + "%"
-                     : "Ободок не найден");
-  start.textContent = "Начать новый тест";
+                     : "Ободок не на связи, переподключите в Mind Tracker");
+  start.textContent = status.connected
+    ? "Начать новый тест" : "Начать тест без прибора";
+  if(!status.connected){
+    setState("Ободок не на связи. Между детьми он отваливается сам: канал живёт "
+      + "полминуты после снятия с головы. Переподключите его в Mind Tracker BCI "
+      + "на вкладке «Мониторинг», связь поднимется за несколько секунд.", true);
+  }else{
+    setState("");
+  }
   // программу могли перезапустить: вход ей нужен свой, чтобы отправить визит
   if(status.manager && !status.manager.signed_in){
     const session = readSession();
