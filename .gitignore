@@ -19,3 +19,5 @@ docs/первая_живая_запись.jsonl
 сборка/
 *.pdf
 .manager_session.json
+.vercel
+.env*
