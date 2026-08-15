@@ -19,7 +19,8 @@ from analyzer.mirror_profile import build_mirror_profile, DOMAINS
 from analyzer.wording import describe_profile
 from analyzer.preprocess import bandpass, notch, epoch, reject_epochs
 from analyzer.spectra import psd_of_epochs
-from bridge.operator import new_session_id, operator_code, operator_name
+from bridge.operator import (new_session_id, operator_code, operator_name,
+                             save_operator)
 from bridge.recorder import Recorder
 
 LIVE_PERIOD_S = 0.2   # пять обновлений в секунду, как в штатном приложении
@@ -306,6 +307,24 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
             # сессия могла оборваться на середине: сырьё сохранено, профиль позже
             result["profile_error"] = str(error)
         return result
+
+    class OperatorIn(BaseModel):
+        name: str = ""
+
+    @app.post("/operator")
+    def set_operator(body: OperatorIn) -> dict:
+        """Подпись рабочего места со страницы входа.
+
+        Раньше имя менеджера правилось в файле руками, и на живых визитах
+        оно так и осталось пустым: в панели стоял технический код.
+        """
+        if not body.name.strip():
+            raise HTTPException(status_code=400, detail="имя не может быть пустым")
+        return {"ok": True, **save_operator(body.name)}
+
+    @app.get("/operator")
+    def get_operator() -> dict:
+        return {"operator": operator_code(), "operator_name": operator_name()}
 
     @app.get("/report/{session_id}.pdf")
     def report_pdf(session_id: str):

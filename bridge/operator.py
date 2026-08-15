@@ -85,6 +85,32 @@ def operator_name() -> str:
     return _env("OPERATOR_NAME").strip()[:80]
 
 
+def save_operator(name: str) -> dict:
+    """Подписывает рабочее место именем менеджера.
+
+    Пишем в тот же .env, где лежат ключи облака, поэтому файл читается
+    и перекладывается целиком: потерять из него ключи означает, что визиты
+    перестанут доезжать до панели школы.
+    """
+    name = (name or "").strip()[:80]
+    code = _slug(name)
+    kept = []
+    if os.path.exists(ENV_PATH):
+        for line in open(ENV_PATH, encoding="utf-8"):
+            stripped = line.strip()
+            if stripped.startswith(("OPERATOR=", "OPERATOR_NAME=")):
+                continue
+            kept.append(line.rstrip("\n"))
+    while kept and not kept[-1].strip():
+        kept.pop()
+    if code:
+        kept.append(f"OPERATOR={code}")
+        kept.append(f"OPERATOR_NAME={name}")
+    with open(ENV_PATH, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(kept) + "\n")
+    return {"operator": operator_code(), "operator_name": operator_name()}
+
+
 def new_session_id(now=None) -> str:
     """Идентификатор визита, неповторимый среди всех менеджеров и дней.
 

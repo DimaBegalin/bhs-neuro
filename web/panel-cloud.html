@@ -47,19 +47,16 @@ border-radius:20px}
 
 <div class="head">
   <div style="flex:1;min-width:240px">
-    <h1>Нейропрофориентация · визиты</h1>
-    <p class="sub">Визиты этого ноутбука. Карточка появляется сразу после теста.</p>
+    <h1>Панель менеджера</h1>
+    <p class="sub" id="whoami">Визиты этого ноутбука. Карточка появляется сразу после теста.</p>
   </div>
-  <a class="btn" href="./" id="new-client">Новый клиент</a>
+  <a class="btn" href="./" id="new-client">Начать тест</a>
+  <button class="ghost" id="logout">Выйти</button>
 </div>
 
-<div class="gate" id="gate">
-  <input id="pin" type="password" placeholder="код доступа" autocomplete="off">
-  <button id="enter">Войти</button>
-</div>
 <div class="state" id="state"></div>
 
-<div id="workspace" hidden>
+<div id="workspace">
   <div class="toolbar">
     <input id="search" placeholder="поиск по имени" style="max-width:320px">
     <button class="ghost" id="refresh">Обновить</button>
@@ -70,7 +67,6 @@ border-radius:20px}
 
 </div><script>
 const BRIDGE = "http://127.0.0.1:8765";
-const PIN = "2026";
 let all = [];
 
 function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,
@@ -156,23 +152,22 @@ document.getElementById("cards").addEventListener("click", async (event) => {
   }
 });
 
-document.getElementById("enter").addEventListener("click", () => {
-  if(document.getElementById("pin").value.trim() !== PIN){
-    document.getElementById("pin").value = "";
-    setState("Код не подошёл.", true);
-    return;
-  }
-  sessionStorage.setItem("bhs_panel", "1");
-  document.getElementById("gate").hidden = true;
-  document.getElementById("workspace").hidden = false;
-  load(); setInterval(load, 20000);
-});
 document.getElementById("search").addEventListener("input", render);
 document.getElementById("refresh").addEventListener("click", load);
+document.getElementById("logout").addEventListener("click", () => {
+  sessionStorage.removeItem("bhs_manager");
+  location.href = "login";
+});
 
-if(sessionStorage.getItem("bhs_panel")){
-  document.getElementById("gate").hidden = true;
-  document.getElementById("workspace").hidden = false;
-  load(); setInterval(load, 20000);
+// в панель попадают только через вход: иначе менеджер минует подпись
+// рабочего места, и визиты снова лягут без имени
+const manager = sessionStorage.getItem("bhs_manager");
+if(!manager){
+  location.replace("login");
+}else{
+  document.getElementById("whoami").textContent =
+    "Менеджер: " + manager + ". Визиты этого ноутбука, свежие сверху.";
+  load();
+  setInterval(load, 20000);
 }
 </script></body></html>

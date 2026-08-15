@@ -80,3 +80,32 @@ def test_missing_env_file_is_not_an_error(tmp_path, monkeypatch):
     monkeypatch.setattr(op, "ENV_PATH", str(tmp_path / "нет-файла"))
     assert op.operator_code()
     assert op.operator_name() == ""
+
+
+def test_saving_operator_keeps_cloud_keys(env):
+    """Подпись рабочего места не должна унести ключи облака.
+
+    Они лежат в том же файле. Потерять их значит, что визиты перестанут
+    доезжать до панели школы, и заметят это не сразу.
+    """
+    env.write_text("SUPABASE_URL=https://x.supabase.co\n"
+                   "SUPABASE_ANON_KEY=secret\n"
+                   "TEST_URL=https://site\n", encoding="utf-8")
+    op.save_operator("Анна Петрова")
+    saved = env.read_text(encoding="utf-8")
+    assert "SUPABASE_URL=https://x.supabase.co" in saved
+    assert "SUPABASE_ANON_KEY=secret" in saved
+    assert "TEST_URL=https://site" in saved
+    assert "OPERATOR=annapetrova" in saved
+    assert "OPERATOR_NAME=Анна Петрова" in saved
+
+
+def test_saving_operator_twice_does_not_pile_up_lines(env):
+    env.write_text("SUPABASE_URL=https://x\n", encoding="utf-8")
+    op.save_operator("Анна Петрова")
+    op.save_operator("Болат Сериков")
+    saved = env.read_text(encoding="utf-8")
+    assert saved.count("OPERATOR=") == 1
+    assert saved.count("OPERATOR_NAME=") == 1
+    assert "Болат" in saved and "Анна" not in saved
+    assert op.operator_code() == "bolatserikov"

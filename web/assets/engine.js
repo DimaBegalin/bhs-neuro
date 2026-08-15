@@ -337,12 +337,18 @@ async function runSession() {
   showMessage(t("done"),
     '<p class="hint">Отчёт готов. Передайте ноутбук специалисту.</p>'
     + '<div style="display:flex;gap:10px;justify-content:center;margin-top:18px">'
-    + '<a class="option start" href="panel" style="text-decoration:none">Панель</a>'
-    + '<a class="option" href="./" style="text-decoration:none">Новый клиент</a>'
+    + '<a class="option start" href="panel" style="text-decoration:none">В панель</a>'
+    + '<a class="option" href="./" style="text-decoration:none">Следующий ребёнок</a>'
     + '</div>');
   if (saved) { console.log("запись сохранена", saved); }
 }
 
-document.getElementById("run").addEventListener("click", runSession);
-showBridgeState();
-setInterval(showBridgeState, 5000);
+// тест открывают из панели, а панель из входа: так рабочее место всегда
+// подписано, и визит не ляжет безымянным
+if (!sessionStorage.getItem("bhs_manager")) {
+  location.replace("login");
+} else {
+  document.getElementById("run").addEventListener("click", runSession);
+  showBridgeState();
+  setInterval(showBridgeState, 5000);
+}

@@ -67,15 +67,18 @@ def main() -> None:
                 ],
             }],
         }, ensure_ascii=False, indent=2))
-    # панель едет на сайт как есть: она обращается только к мосту на ноутбуке
-    panel_src = os.path.join(WEB, "panel-cloud.html")
-    panel_out = os.path.join(OUT_DIR, "panel.html")
-    shutil.copyfile(panel_src, panel_out)
+    # вход и панель едут на сайт как есть: они обращаются только к мосту
+    # на ноутбуке, собирать в них нечего
+    pages = {"panel-cloud.html": "panel.html", "login.html": "login.html"}
+    for source, target in pages.items():
+        shutil.copyfile(os.path.join(WEB, source), os.path.join(OUT_DIR, target))
 
     size = os.path.getsize(OUT)
     assert "assets/" not in html, "остались внешние ссылки"
     print(f"собрано: {OUT} ({size/1024:.0f} КБ)")
-    print(f"собрано: {panel_out} ({os.path.getsize(panel_out)/1024:.0f} КБ)")
+    for target in pages.values():
+        path = os.path.join(OUT_DIR, target)
+        print(f"собрано: {path} ({os.path.getsize(path)/1024:.0f} КБ)")
 
 
 if __name__ == "__main__":
