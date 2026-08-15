@@ -6,6 +6,8 @@ cd "$(dirname "$0")"
 APP_DIR="$(pwd)"
 AGENT_ID="school.bhs.neuro"
 AGENT="$HOME/Library/LaunchAgents/$AGENT_ID.plist"
+SITE=$(grep -E '^TEST_URL=' .env 2>/dev/null | cut -d= -f2- | tr -d ' ')
+[ -z "$SITE" ] && SITE="https://bhs-neuro.vercel.app"
 
 echo "=========================================="
 echo "  Нейропрофориентация BHS: установка"
@@ -43,34 +45,11 @@ VIRTUAL_ENV="$APP_DIR/.venv" "$UV" pip install --quiet -r requirements.txt || {
   exit 1
 }
 
-# --- 2. Подпись рабочего места ---
-CURRENT=$(grep -E '^OPERATOR_NAME=' .env 2>/dev/null | cut -d= -f2-)
-echo ""
-if [ -n "${CURRENT:-}" ]; then
-  echo "Рабочее место уже подписано: $CURRENT"
-  read -r -p "Оставить как есть? [Enter — да, или впишите новое имя]: " WHO
-  WHO="${WHO:-$CURRENT}"
-else
-  read -r -p "Ваше имя и фамилия (появится в панели): " WHO
-fi
-if [ -n "${WHO:-}" ]; then
-  # код считает сама программа: она переводит кириллицу в латиницу,
-  # иначе русское имя выпадало в бессмысленный хеш вида 7fe77581
-  CODE=$(./.venv/bin/python -c "
-import sys
-sys.path.insert(0, '.')
-from bridge.operator import _slug
-print(_slug(sys.argv[1]))
-" "$WHO" 2>/dev/null)
-  [ -z "$CODE" ] && CODE=$(echo "$WHO" | md5 -q 2>/dev/null | cut -c1-8)
-  touch .env
-  grep -v -E '^(OPERATOR|OPERATOR_NAME)=' .env > .env.tmp 2>/dev/null || true
-  mv .env.tmp .env
-  printf 'OPERATOR=%s\nOPERATOR_NAME=%s\n' "$CODE" "$WHO" >> .env
-  echo "Записано: $WHO (код $CODE)"
-fi
+# Имя менеджера здесь не спрашиваем: он называет себя при входе на сайте,
+# и программа берёт его оттуда. Два места для одного имени неизбежно
+# разошлись бы, и в панели оказался бы не тот менеджер.
 
-# --- 3. Автозапуск. Мост поднимается сам при входе в систему ---
+# --- 2. Автозапуск. Программа поднимается сама при входе в систему ---
 mkdir -p "$HOME/Library/LaunchAgents" logs
 cat > "$AGENT" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -116,7 +95,8 @@ if [ -n "$OK" ]; then
   echo "  1. Включите ободок и сопрягите его:"
   echo "     Системные настройки, Bluetooth, Подключить."
   echo "  2. Откройте Mind Tracker BCI, вкладка Мониторинг."
-  echo "  3. Откройте сайт теста в Chrome."
+  echo "  3. Откройте в Chrome: $SITE"
+  echo "     Войдите по почте и паролю, которые дала школа."
 else
   echo "Программа установлена, но пока не отвечает."
   echo "Перезагрузите ноутбук и откройте сайт теста."
