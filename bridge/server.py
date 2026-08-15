@@ -8,6 +8,7 @@ import re
 
 import numpy as np
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -305,6 +306,40 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
             # сессия могла оборваться на середине: сырьё сохранено, профиль позже
             result["profile_error"] = str(error)
         return result
+
+    @app.get("/report/{session_id}.pdf")
+    def report_pdf(session_id: str):
+        """Готовый PDF отчёта: печатается браузером, один в один с экраном.
+
+        Печать занимает несколько секунд, поэтому готовый файл кладём рядом
+        с отчётом и второй раз отдаём уже его: на разборе документ обычно
+        просят не по одному разу.
+        """
+        session_id = _check_session_id(session_id)
+        html_path = os.path.join("web", "reports", f"{session_id}.html")
+        if not os.path.exists(html_path):
+            raise HTTPException(status_code=404, detail="отчёт не найден")
+        pdf_path = os.path.join("web", "reports", f"{session_id}.pdf")
+        if (not os.path.exists(pdf_path)
+                or os.path.getmtime(pdf_path) < os.path.getmtime(html_path)):
+            from report.to_pdf import html_to_pdf, BrowserNotFound
+            try:
+                html_to_pdf(html_path, pdf_path)
+            except BrowserNotFound as error:
+                raise HTTPException(status_code=501, detail=str(error))
+            except Exception as error:
+                raise HTTPException(status_code=500, detail=str(error))
+        return FileResponse(pdf_path, media_type="application/pdf",
+                            filename=f"{session_id}.pdf")
+
+    @app.get("/report/{session_id}.html")
+    def report_html(session_id: str):
+        """Страница отчёта. Панель может жить на сайте, а отчёты здесь."""
+        session_id = _check_session_id(session_id)
+        path = os.path.join("web", "reports", f"{session_id}.html")
+        if not os.path.exists(path):
+            raise HTTPException(status_code=404, detail="отчёт не найден")
+        return FileResponse(path, media_type="text/html; charset=utf-8")
 
     @app.get("/sessions")
     def sessions() -> dict:

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Сборка облачной страницы теста: один файл для выкладки на сайт.
+"""Сборка сайта: страница теста и панель специалиста, для выкладки.
 
 Страница собирается из тех же исходников, что и локальная (web/index.html
 и web/assets), поэтому логика теста не может разъехаться между локальным
@@ -15,6 +15,7 @@
 import json
 import os
 import re
+import shutil
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -66,9 +67,15 @@ def main() -> None:
                 ],
             }],
         }, ensure_ascii=False, indent=2))
+    # панель едет на сайт как есть: она обращается только к мосту на ноутбуке
+    panel_src = os.path.join(WEB, "panel-cloud.html")
+    panel_out = os.path.join(OUT_DIR, "panel.html")
+    shutil.copyfile(panel_src, panel_out)
+
     size = os.path.getsize(OUT)
     assert "assets/" not in html, "остались внешние ссылки"
     print(f"собрано: {OUT} ({size/1024:.0f} КБ)")
+    print(f"собрано: {panel_out} ({os.path.getsize(panel_out)/1024:.0f} КБ)")
 
 
 if __name__ == "__main__":

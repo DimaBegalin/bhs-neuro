@@ -330,8 +330,16 @@ async function runSession() {
   }
 
   await bridgeEvent("session_end", {});
+  showMessage(t("done"), '<p class="hint">Отчёт готовится, полминуты.</p>');
   const saved = await bridgeSessionStop();
-  showMessage(t("done"));
+  // ребёнок свой результат не видит, поэтому кнопка в панель появляется
+  // только после финального экрана: её нажимает уже менеджер
+  showMessage(t("done"),
+    '<p class="hint">Отчёт готов. Передайте ноутбук специалисту.</p>'
+    + '<div style="display:flex;gap:10px;justify-content:center;margin-top:18px">'
+    + '<a class="option start" href="panel" style="text-decoration:none">Панель</a>'
+    + '<a class="option" href="./" style="text-decoration:none">Новый клиент</a>'
+    + '</div>');
   if (saved) { console.log("запись сохранена", saved); }
 }
 

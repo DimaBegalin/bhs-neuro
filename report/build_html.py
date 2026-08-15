@@ -457,8 +457,8 @@ TEMPLATE = """<!doctype html><html lang="ru"><head><meta charset="utf-8">
 <title>Нейропрофориентация · Beta High School</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-@font-face{font-family:'Halvar';src:url('fonts/HalvarBreit-Bd.woff2') format('woff2');font-weight:700}
-@font-face{font-family:'Halvar';src:url('fonts/HalvarBreit-Md.woff2') format('woff2');font-weight:500}
+@font-face{font-family:'Halvar';src:url('../fonts/HalvarBreit-Bd.woff2') format('woff2');font-weight:700}
+@font-face{font-family:'Halvar';src:url('../fonts/HalvarBreit-Md.woff2') format('woff2');font-weight:500}
 :root{--orange:#F16B14;--blue:#5B8DEF;--green:#22B57C;--amber:#F4C15A;--alert:#F0666B;
 --bg:#090D15;--card:#111726;--card2:#182031;--line:rgba(255,255,255,.08);
 --text:#F6F8FB;--muted:#94A0B8;
@@ -479,6 +479,26 @@ font-family:var(--body);font-size:16px;font-weight:500;padding:12px 26px;
 border-radius:999px;cursor:pointer;transition:all .2s ease}
 .tabs button.on{background:var(--orange);border-color:var(--orange);color:#fff}
 .pane{display:none}.pane.on{display:block}
+.pdf-btn{border:1px solid var(--line);background:var(--card);color:var(--text);
+font-family:var(--body);font-size:15px;font-weight:500;padding:12px 22px;
+border-radius:999px;cursor:pointer;margin-left:auto}
+.pdf-btn:hover{border-color:var(--orange);color:var(--orange)}
+/* Печать. Три вещи обязательны, иначе документ уходит семье испорченным:
+   виден весь отчёт, а не открытая вкладка; фон сохраняется, иначе светлый
+   текст ложится на белое и читать нечего; карточки не рвутся по страницам */
+@media print{
+  @page{size:A4;margin:12mm}
+  html,body{background:#090D15 !important;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{padding-bottom:0}
+  body::before{display:none}
+  .tabs,.pdf-btn{display:none !important}
+  .pane{display:block !important;break-before:page}
+  .pane:first-of-type{break-before:auto}
+  .wrap{max-width:none;padding:0}
+  .card,.tile,.hb,.donut{break-inside:avoid}
+  h1{font-size:28px}
+}
 .card{background:var(--card);border:1px solid var(--line);border-radius:24px;
 padding:26px 28px;margin-bottom:18px}
 .card-head{margin-bottom:20px}
@@ -653,6 +673,7 @@ transition:opacity .2s ease;cursor:default}
   <button class="on" data-tab="0">Мониторинг мозга</button>
   <button data-tab="1">Нейроинсайты</button>
   <button data-tab="2">Профориентация</button>
+  <button class="pdf-btn" id="pdf" data-tab="pdf">Скачать PDF</button>
 </div>
 
 <div class="pane on">__PANE1__</div>
@@ -674,15 +695,52 @@ function animate(){
     requestAnimationFrame(function(){ b.style.width = w; });
   });
 }
-document.querySelectorAll('.tabs button').forEach(function(btn){
+// кнопку PDF из переключателя вкладок исключаем: её data-tab не число,
+// и общий обработчик спрятал бы разом все панели
+document.querySelectorAll('.tabs button:not(.pdf-btn)').forEach(function(btn){
   btn.addEventListener('click', function(){
     var index = Number(btn.getAttribute('data-tab'));
     document.querySelectorAll('.pane').forEach(function(p,i){p.classList.toggle('on', i===index)});
-    document.querySelectorAll('.tabs button').forEach(function(b){b.classList.remove('on')});
+    document.querySelectorAll('.tabs button:not(.pdf-btn)').forEach(function(b){b.classList.remove('on')});
     btn.classList.add('on');
     animate();
   });
 });
+
+/* Скачивание PDF. Основной путь: программа на ноутбуке печатает эту же
+   страницу браузером и отдаёт готовый файл, поэтому документ выходит один
+   в один с экраном. Если программы нет, отдаём страницу в печать браузера:
+   печатные стили раскрывают все три вкладки и держат тёмный фон. */
+var pdfButton = document.getElementById('pdf');
+if (pdfButton) {
+  pdfButton.addEventListener('click', function(){
+    var name = (location.pathname.split('/').pop() || '').replace(/[.]html$/, '');
+    var label = pdfButton.textContent;
+    if (!name) { window.print(); return; }
+    pdfButton.disabled = true;
+    pdfButton.textContent = 'Готовлю PDF...';
+    fetch('http://127.0.0.1:8765/report/' + encodeURIComponent(name) + '.pdf')
+      .then(function(response){
+        if (!response.ok) { throw new Error('нет'); }
+        return response.blob();
+      })
+      .then(function(blob){
+        var url = URL.createObjectURL(blob);
+        var link = document.createElement('a');
+        link.href = url;
+        link.download = name + '.pdf';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 10000);
+      })
+      .catch(function(){ window.print(); })
+      .then(function(){
+        pdfButton.disabled = false;
+        pdfButton.textContent = label;
+      });
+  });
+}
 if (location.hash === '#career') { document.querySelectorAll('.tabs button')[2].click(); }
 if (location.hash === '#insights') { document.querySelectorAll('.tabs button')[1].click(); }
 document.querySelectorAll('.donut').forEach(function(donut){
