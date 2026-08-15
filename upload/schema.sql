@@ -1,64 +1,48 @@
--- Схема хранилища нейропрофориентации BHS, проект bhs-analytics.
--- Персональные данные лежат отдельно от сигнала, связь только по session_id.
+-- Хранилище визитов нейропрофориентации.
+-- Выполнить один раз в Supabase, раздел SQL Editor.
+--
+-- База общая на всех менеджеров, но каждый видит только свои визиты.
+-- Держится это не на странице, а на правилах доступа самой базы: даже зная
+-- адрес и ключ, чужие записи прочитать нельзя.
 
-create table if not exists neuro_participants (
-  id uuid primary key default gen_random_uuid(),
-  full_name text not null,
-  birth_year int,
-  grade text,
-  phone text,
-  consent_at timestamptz not null,
-  created_at timestamptz not null default now()
+create table if not exists neuro_visits (
+  session_id    text primary key,
+  manager_id    uuid not null references auth.users(id) on delete cascade,
+  student_name  text not null default '',
+  grade         text not null default '',
+  track         text not null default 'ru',
+  started_at    text not null default '',
+  has_eeg       boolean not null default false,
+  iaf           numeric,
+  pulse_bpm     integer,
+  quality       jsonb,
+  domains       jsonb,
+  -- готовая страница разбора: панель открывает её как есть, поэтому
+  -- отчёт доступен с любого устройства, а не только с ноутбука замера
+  report_html   text,
+  created_at    timestamptz not null default now()
 );
 
-create table if not exists neuro_sessions (
-  id text primary key,
-  participant_id uuid references neuro_participants(id),
-  created_at timestamptz not null default now(),
-  operator text,
-  device_serial text,
-  lang text not null default 'ru',
-  status text not null default 'done',
-  has_eeg boolean not null default false,
-  quality_score numeric
-);
+create index if not exists neuro_visits_manager_idx
+  on neuro_visits(manager_id, created_at desc);
 
-create table if not exists neuro_trials (
-  id bigserial primary key,
-  session_id text references neuro_sessions(id),
-  domain text not null,
-  trial_index int not null,
-  stimulus_id text,
-  correct boolean,
-  rt_ms int
-);
+alter table neuro_visits enable row level security;
 
-create table if not exists neuro_block_metrics (
-  id bigserial primary key,
-  session_id text references neuro_sessions(id),
-  domain text not null,
-  accuracy numeric,
-  median_rt_ms numeric,
-  rt_sd_ms numeric,
-  erd_alpha_high numeric,
-  erd_alpha_low numeric,
-  theta_rise numeric,
-  engagement numeric,
-  attention_slope numeric,
-  epochs_total int,
-  epochs_rejected int
-);
+-- Менеджер работает только со своими визитами. Три правила вместо одного
+-- потому, что postgres проверяет чтение, вставку и правку раздельно.
+drop policy if exists "свои визиты видны" on neuro_visits;
+create policy "свои визиты видны" on neuro_visits
+  for select to authenticated using (auth.uid() = manager_id);
 
-create table if not exists neuro_profiles (
-  id bigserial primary key,
-  session_id text unique references neuro_sessions(id),
-  iaf numeric,
-  iaf_prominence numeric,
-  bands jsonb,
-  domains jsonb,
-  quality jsonb,
-  method_version text not null
-);
+drop policy if exists "свои визиты добавляются" on neuro_visits;
+create policy "свои визиты добавляются" on neuro_visits
+  for insert to authenticated with check (auth.uid() = manager_id);
 
-create index if not exists neuro_block_metrics_session_idx on neuro_block_metrics(session_id);
-create index if not exists neuro_trials_session_idx on neuro_trials(session_id);
+drop policy if exists "свои визиты правятся" on neuro_visits;
+create policy "свои визиты правятся" on neuro_visits
+  for update to authenticated
+  using (auth.uid() = manager_id) with check (auth.uid() = manager_id);
+
+-- Удаление намеренно не разрешено никому: визит это результат замера
+-- ребёнка, и стирать его случайным нажатием нельзя. Чистка только руками
+-- через дашборд.

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BHS · вход</title>
+<title>BHS · отчёт</title>
 <style>:root{--orange:#F16B14;--green:#22B57C;--alert:#F0666B;--bg:#090D15;--card:#141A26;
 --card2:#1B2231;--line:rgba(255,255,255,.08);--text:#F6F8FB;--muted:#94A0B8;
 --body:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
@@ -33,33 +33,21 @@ vertical-align:1px}
 .dot.on{background:var(--green)}.dot.off{background:var(--alert)}
 .dot.wait{background:var(--muted)}
 
-body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
-.box{width:100%;max-width:420px;background:var(--card);border:1px solid var(--line);
-border-radius:24px;padding:32px 30px}
-.checks{background:var(--card2);border:1px solid var(--line);border-radius:14px;
-padding:14px 16px;margin-top:22px;font-size:14px}
-.checks div{margin:5px 0}
-button{width:100%;margin-top:22px;padding:15px;font-size:16px}
+body{margin:0}
+.bar{position:sticky;top:0;z-index:10;display:flex;gap:10px;align-items:center;
+background:var(--card);border-bottom:1px solid var(--line);padding:12px 18px}
+.bar .name{font-weight:600;margin-right:auto}
+.bar a,.bar button{font-size:14px;padding:10px 18px}
+iframe{display:block;width:100%;height:calc(100vh - 61px);border:0;background:var(--bg)}
+.msg{padding:60px 20px;text-align:center;color:var(--muted)}
 </style></head><body>
 
-<div class="box">
-  <h1>Нейропрофориентация</h1>
-  <p class="sub">Вход для менеджера. Учётную запись заводит школа.</p>
-
-  <label for="email">Почта</label>
-  <input id="email" type="email" autocomplete="username" placeholder="anna@bhs.kz">
-
-  <label for="password">Пароль</label>
-  <input id="password" type="password" autocomplete="current-password">
-
-  <button id="enter">Войти</button>
-  <div class="state" id="state"></div>
-
-  <div class="checks" id="checks">
-    <div id="c-app"><span class="dot wait"></span>Программа на ноутбуке: проверяю...</div>
-    <div id="c-device"><span class="dot wait"></span>Ободок: проверяю...</div>
-  </div>
+<div class="bar">
+  <span class="name" id="name">Отчёт</span>
+  <button class="ghost" id="pdf">Скачать PDF</button>
+  <a class="btn" href="admin">В панель</a>
 </div>
+<div id="host"><div class="msg" id="msg">Загружаю отчёт...</div></div>
 
 <script>/* Общее для страниц сайта: облако, вход менеджера и связь с программой.
 
@@ -150,77 +138,64 @@ function esc(value) {
 </script>
 <script src="config.js"></script>
 <script>
-function setState(text, kind){
-  const box = document.getElementById("state");
-  box.textContent = text || "";
-  box.className = "state" + (kind ? " " + kind : "");
-}
+const id = new URLSearchParams(location.search).get("v") || "";
 
-function setCheck(id, on, text){
-  document.getElementById(id).innerHTML =
-    '<span class="dot ' + (on === null ? "wait" : (on ? "on" : "off")) + '"></span>' + text;
-}
-
-/* Состояние оборудования показываем до входа: если программа не запущена,
-   менеджер узнает об этом сейчас, а не после впустую проведённого теста. */
-async function checkEquipment(){
-  const status = await bridgeStatus();
-  if(!status){
-    setCheck("c-app", false, "Программа не запущена на этом ноутбуке");
-    setCheck("c-device", false, "Ободок не найден: нет программы");
-    return;
-  }
-  setCheck("c-app", true, "Программа работает");
-  setCheck("c-device", status.connected,
-    status.connected
-      ? "Ободок на связи, батарея " + (status.battery || 0) + "%"
-      : "Ободок не найден: " + (status.device_error || "включите его"));
-}
-
-document.getElementById("enter").addEventListener("click", async () => {
-  const email = document.getElementById("email").value.trim();
-  const password = document.getElementById("password").value;
-  if(!email || !password){ setState("Впишите почту и пароль.", "bad"); return; }
-
+/* Отчёт лежит в облаке готовой страницей, поэтому разбор открывается
+   с любого устройства, а не только с ноутбука замера. Показываем его
+   в рамке без доступа к странице панели: это чужая свёрстанная страница,
+   пусть живёт отдельно. */
+async function load(){
+  if(!id){ document.getElementById("msg").textContent = "Визит не указан."; return; }
+  const token = await liveToken();
+  if(!token){ location.replace("login"); return; }
   const {url, key} = cloudSettings();
-  if(!url || !key){ setState("Облако не настроено. Позовите администратора.", "bad"); return; }
-
-  const button = document.getElementById("enter");
-  button.disabled = true;
-  setState("Проверяю...");
   try{
-    const response = await fetch(url + "/auth/v1/token?grant_type=password", {
-      method: "POST",
-      headers: {"apikey": key, "Content-Type": "application/json"},
-      body: JSON.stringify({email: email, password: password})
+    const response = await fetch(url + "/rest/v1/neuro_visits?select=student_name,"
+      + "grade,started_at,report_html&session_id=eq." + encodeURIComponent(id), {
+      headers: {"apikey": key, "Authorization": "Bearer " + token}
     });
-    const body = await response.json();
-    if(!response.ok){
-      throw new Error(body.error_description || body.msg || "почта или пароль не подошли");
-    }
-    const session = {
-      access_token: body.access_token,
-      refresh_token: body.refresh_token,
-      manager_id: (body.user || {}).id || "",
-      email: (body.user || {}).email || email,
-      expires_at: Math.floor(Date.now()/1000) + (body.expires_in || 3600)
-    };
-    saveSession(session);
-    // программе вход передаём отдельно: визит она отправляет сама,
-    // уже после расчёта профиля, когда страница может быть закрыта
-    await tellBridge(session);
-    location.href = "admin";
+    if(!response.ok){ throw new Error("код " + response.status); }
+    const rows = await response.json();
+    if(!rows.length){ throw new Error("визит не найден"); }
+    const visit = rows[0];
+    document.getElementById("name").textContent =
+      [visit.student_name, visit.grade, visit.started_at].filter(Boolean).join(" · ");
+    if(!visit.report_html){ throw new Error("отчёт ещё не собран"); }
+    const frame = document.createElement("iframe");
+    frame.setAttribute("sandbox", "allow-same-origin allow-scripts allow-modals");
+    frame.srcdoc = visit.report_html;
+    const host = document.getElementById("host");
+    host.innerHTML = "";
+    host.appendChild(frame);
   }catch(e){
-    setState(e.message, "bad");
+    document.getElementById("msg").textContent = "Не открылся: " + e.message;
+  }
+}
+
+document.getElementById("pdf").addEventListener("click", async () => {
+  const button = document.getElementById("pdf");
+  const label = button.textContent;
+  button.disabled = true;
+  button.textContent = "Готовлю...";
+  try{
+    const response = await fetch(BRIDGE + "/report/" + encodeURIComponent(id) + ".pdf");
+    if(!response.ok){ throw new Error("код " + response.status); }
+    const blob = await response.blob();
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = id + ".pdf";
+    document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 10000);
+  }catch(e){
+    // печатает программа на ноутбуке замера: с чужого устройства её нет,
+    // и тогда печать берёт на себя сам браузер
+    const frame = document.querySelector("iframe");
+    if(frame && frame.contentWindow){ frame.contentWindow.print(); }
+  }finally{
     button.disabled = false;
+    button.textContent = label;
   }
 });
 
-document.getElementById("password").addEventListener("keydown", (e) => {
-  if(e.key === "Enter"){ document.getElementById("enter").click(); }
-});
-
-if(readSession()){ location.replace("admin"); }
-checkEquipment();
-setInterval(checkEquipment, 5000);
+if(requireSession()){ load(); }
 </script></body></html>

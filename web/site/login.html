@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BHS · вход</title>
+<style>__THEME__
+body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.box{width:100%;max-width:420px;background:var(--card);border:1px solid var(--line);
+border-radius:24px;padding:32px 30px}
+.checks{background:var(--card2);border:1px solid var(--line);border-radius:14px;
+padding:14px 16px;margin-top:22px;font-size:14px}
+.checks div{margin:5px 0}
+button{width:100%;margin-top:22px;padding:15px;font-size:16px}
+</style></head><body>
+
+<div class="box">
+  <h1>Нейропрофориентация</h1>
+  <p class="sub">Вход для менеджера. Учётную запись заводит школа.</p>
+
+  <label for="email">Почта</label>
+  <input id="email" type="email" autocomplete="username" placeholder="anna@bhs.kz">
+
+  <label for="password">Пароль</label>
+  <input id="password" type="password" autocomplete="current-password">
+
+  <button id="enter">Войти</button>
+  <div class="state" id="state"></div>
+
+  <div class="checks" id="checks">
+    <div id="c-app"><span class="dot wait"></span>Программа на ноутбуке: проверяю...</div>
+    <div id="c-device"><span class="dot wait"></span>Ободок: проверяю...</div>
+  </div>
+</div>
+
+<script>__SHARED__</script>
+<script src="config.js"></script>
+<script>
+function setState(text, kind){
+  const box = document.getElementById("state");
+  box.textContent = text || "";
+  box.className = "state" + (kind ? " " + kind : "");
+}
+
+function setCheck(id, on, text){
+  document.getElementById(id).innerHTML =
+    '<span class="dot ' + (on === null ? "wait" : (on ? "on" : "off")) + '"></span>' + text;
+}
+
+/* Состояние оборудования показываем до входа: если программа не запущена,
+   менеджер узнает об этом сейчас, а не после впустую проведённого теста. */
+async function checkEquipment(){
+  const status = await bridgeStatus();
+  if(!status){
+    setCheck("c-app", false, "Программа не запущена на этом ноутбуке");
+    setCheck("c-device", false, "Ободок не найден: нет программы");
+    return;
+  }
+  setCheck("c-app", true, "Программа работает");
+  setCheck("c-device", status.connected,
+    status.connected
+      ? "Ободок на связи, батарея " + (status.battery || 0) + "%"
+      : "Ободок не найден: " + (status.device_error || "включите его"));
+}
+
+document.getElementById("enter").addEventListener("click", async () => {
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  if(!email || !password){ setState("Впишите почту и пароль.", "bad"); return; }
+
+  const {url, key} = cloudSettings();
+  if(!url || !key){ setState("Облако не настроено. Позовите администратора.", "bad"); return; }
+
+  const button = document.getElementById("enter");
+  button.disabled = true;
+  setState("Проверяю...");
+  try{
+    const response = await fetch(url + "/auth/v1/token?grant_type=password", {
+      method: "POST",
+      headers: {"apikey": key, "Content-Type": "application/json"},
+      body: JSON.stringify({email: email, password: password})
+    });
+    const body = await response.json();
+    if(!response.ok){
+      throw new Error(body.error_description || body.msg || "почта или пароль не подошли");
+    }
+    const session = {
+      access_token: body.access_token,
+      refresh_token: body.refresh_token,
+      manager_id: (body.user || {}).id || "",
+      email: (body.user || {}).email || email,
+      expires_at: Math.floor(Date.now()/1000) + (body.expires_in || 3600)
+    };
+    saveSession(session);
+    // программе вход передаём отдельно: визит она отправляет сама,
+    // уже после расчёта профиля, когда страница может быть закрыта
+    await tellBridge(session);
+    location.href = "admin";
+  }catch(e){
+    setState(e.message, "bad");
+    button.disabled = false;
+  }
+});
+
+document.getElementById("password").addEventListener("keydown", (e) => {
+  if(e.key === "Enter"){ document.getElementById("enter").click(); }
+});
+
+if(readSession()){ location.replace("admin"); }
+checkEquipment();
+setInterval(checkEquipment, 5000);
+</script></body></html>

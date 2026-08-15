@@ -21,6 +21,7 @@ from analyzer.preprocess import bandpass, notch, epoch, reject_epochs
 from analyzer.spectra import psd_of_epochs
 from bridge.operator import (new_session_id, operator_code, operator_name,
                              save_operator)
+from bridge.cloud import ManagerSession, configured as cloud_configured
 from bridge.recorder import Recorder
 
 LIVE_PERIOD_S = 0.2   # пять обновлений в секунду, как в штатном приложении
@@ -85,6 +86,7 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
     state = {"recorder": recorder, "out_dir": "data", "phase": None,
              "realtime": realtime, "running": False, "lang": "ru",
              "streaming": False}
+    manager = ManagerSession()
 
     def _feed(chunk: np.ndarray) -> None:
         """Живые метрики считаются всегда, запись только во время сессии.
@@ -149,6 +151,7 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
             "operator_name": operator_name(),
             # почему прибора нет: менеджеру это видно прямо на странице теста
             "device_error": getattr(device, "last_error", "") or "",
+            "manager": manager.snapshot(),
         }
 
     @app.post("/event")
@@ -293,11 +296,11 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
                 build_report_page(report, f"web/reports/{rec.session_id}.html",
                                   caption or rec.session_id)
                 result["report"] = f"reports/{rec.session_id}.html"
-                # облачная копия: панель на Vercel видит визит сразу
+                # облачная копия: панель менеджера видит визит сразу
                 try:
-                    from upload.cloud_push import push_visit
+                    from bridge.cloud import push_visit
                     result["cloud"] = push_visit(
-                        meta, profile, report,
+                        manager, meta, profile, report,
                         f"web/reports/{rec.session_id}.html")
                 except Exception as cloud_error:
                     result["cloud"] = "офлайн: " + str(cloud_error)[:80]
@@ -308,23 +311,36 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
             result["profile_error"] = str(error)
         return result
 
-    class OperatorIn(BaseModel):
-        name: str = ""
+    class ManagerIn(BaseModel):
+        access_token: str = ""
+        refresh_token: str = ""
+        manager_id: str = ""
+        email: str = ""
+        expires_at: float = 0
 
-    @app.post("/operator")
-    def set_operator(body: OperatorIn) -> dict:
-        """Подпись рабочего места со страницы входа.
+    @app.post("/manager")
+    def sign_in(body: ManagerIn) -> dict:
+        """Передача входа со страницы в программу.
 
-        Раньше имя менеджера правилось в файле руками, и на живых визитах
-        оно так и осталось пустым: в панели стоял технический код.
+        Визит уходит в облако под учётной записью менеджера, поэтому
+        программе нужен его вход. Иначе принадлежность визита пришлось бы
+        объявлять со страницы, а такому объявлению верить нельзя.
         """
-        if not body.name.strip():
-            raise HTTPException(status_code=400, detail="имя не может быть пустым")
-        return {"ok": True, **save_operator(body.name)}
+        if not body.manager_id or not body.access_token:
+            raise HTTPException(status_code=400, detail="неполный вход")
+        saved = manager.remember(body.model_dump())
+        # имя рабочего места по почте: оно идёт в имя файлов визита
+        save_operator(body.email.split("@")[0] or body.manager_id[:8])
+        return {"ok": True, **saved}
 
-    @app.get("/operator")
-    def get_operator() -> dict:
-        return {"operator": operator_code(), "operator_name": operator_name()}
+    @app.get("/manager")
+    def manager_state() -> dict:
+        return {**manager.snapshot(), "cloud_configured": cloud_configured()}
+
+    @app.delete("/manager")
+    def sign_out() -> dict:
+        manager.clear()
+        return {"ok": True}
 
     @app.get("/report/{session_id}.pdf")
     def report_pdf(session_id: str):

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BHS · отчёт</title>
+<style>__THEME__
+body{margin:0}
+.bar{position:sticky;top:0;z-index:10;display:flex;gap:10px;align-items:center;
+background:var(--card);border-bottom:1px solid var(--line);padding:12px 18px}
+.bar .name{font-weight:600;margin-right:auto}
+.bar a,.bar button{font-size:14px;padding:10px 18px}
+iframe{display:block;width:100%;height:calc(100vh - 61px);border:0;background:var(--bg)}
+.msg{padding:60px 20px;text-align:center;color:var(--muted)}
+</style></head><body>
+
+<div class="bar">
+  <span class="name" id="name">Отчёт</span>
+  <button class="ghost" id="pdf">Скачать PDF</button>
+  <a class="btn" href="admin">В панель</a>
+</div>
+<div id="host"><div class="msg" id="msg">Загружаю отчёт...</div></div>
+
+<script>__SHARED__</script>
+<script src="config.js"></script>
+<script>
+const id = new URLSearchParams(location.search).get("v") || "";
+
+/* Отчёт лежит в облаке готовой страницей, поэтому разбор открывается
+   с любого устройства, а не только с ноутбука замера. Показываем его
+   в рамке без доступа к странице панели: это чужая свёрстанная страница,
+   пусть живёт отдельно. */
+async function load(){
+  if(!id){ document.getElementById("msg").textContent = "Визит не указан."; return; }
+  const token = await liveToken();
+  if(!token){ location.replace("login"); return; }
+  const {url, key} = cloudSettings();
+  try{
+    const response = await fetch(url + "/rest/v1/neuro_visits?select=student_name,"
+      + "grade,started_at,report_html&session_id=eq." + encodeURIComponent(id), {
+      headers: {"apikey": key, "Authorization": "Bearer " + token}
+    });
+    if(!response.ok){ throw new Error("код " + response.status); }
+    const rows = await response.json();
+    if(!rows.length){ throw new Error("визит не найден"); }
+    const visit = rows[0];
+    document.getElementById("name").textContent =
+      [visit.student_name, visit.grade, visit.started_at].filter(Boolean).join(" · ");
+    if(!visit.report_html){ throw new Error("отчёт ещё не собран"); }
+    const frame = document.createElement("iframe");
+    frame.setAttribute("sandbox", "allow-same-origin allow-scripts allow-modals");
+    frame.srcdoc = visit.report_html;
+    const host = document.getElementById("host");
+    host.innerHTML = "";
+    host.appendChild(frame);
+  }catch(e){
+    document.getElementById("msg").textContent = "Не открылся: " + e.message;
+  }
+}
+
+document.getElementById("pdf").addEventListener("click", async () => {
+  const button = document.getElementById("pdf");
+  const label = button.textContent;
+  button.disabled = true;
+  button.textContent = "Готовлю...";
+  try{
+    const response = await fetch(BRIDGE + "/report/" + encodeURIComponent(id) + ".pdf");
+    if(!response.ok){ throw new Error("код " + response.status); }
+    const blob = await response.blob();
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = id + ".pdf";
+    document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 10000);
+  }catch(e){
+    // печатает программа на ноутбуке замера: с чужого устройства её нет,
+    // и тогда печать берёт на себя сам браузер
+    const frame = document.querySelector("iframe");
+    if(frame && frame.contentWindow){ frame.contentWindow.print(); }
+  }finally{
+    button.disabled = false;
+    button.textContent = label;
+  }
+});
+
+if(requireSession()){ load(); }
+</script></body></html>

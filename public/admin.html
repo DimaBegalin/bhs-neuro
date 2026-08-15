@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BHS · панель менеджера</title>
+<style>:root{--orange:#F16B14;--green:#22B57C;--alert:#F0666B;--bg:#090D15;--card:#141A26;
+--card2:#1B2231;--line:rgba(255,255,255,.08);--text:#F6F8FB;--muted:#94A0B8;
+--body:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:16px;
+line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+.wrap{max-width:1080px;margin:0 auto;padding:28px 20px 60px}
+h1{font-size:26px;font-weight:700;letter-spacing:-.3px}
+.sub{color:var(--muted);font-size:14.5px;margin-top:6px}
+button,.btn{border:0;background:var(--orange);color:#fff;font-family:var(--body);
+font-weight:600;font-size:15px;padding:13px 22px;border-radius:14px;cursor:pointer;
+text-decoration:none;display:inline-block;text-align:center;transition:opacity .15s}
+button:hover,.btn:hover{opacity:.9}
+button:disabled{opacity:.45;cursor:default}
+.btn.ghost,button.ghost{background:var(--card2);color:var(--text);
+border:1px solid var(--line)}
+input{width:100%;background:var(--card2);border:1px solid var(--line);color:var(--text);
+border-radius:14px;padding:14px 16px;font-size:16px;font-family:var(--body)}
+input:focus{outline:0;border-color:var(--orange)}
+label{display:block;font-size:13.5px;color:var(--muted);margin:18px 0 7px}
+.state{font-size:14px;color:var(--muted);margin-top:14px;min-height:20px}
+.state.bad{color:var(--alert)}
+.state.ok{color:var(--green)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;
+vertical-align:1px}
+.dot.on{background:var(--green)}.dot.off{background:var(--alert)}
+.dot.wait{background:var(--muted)}
+
+.top{display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap}
+.top .who{flex:1;min-width:220px}
+.rig{display:flex;gap:10px;flex-wrap:wrap;margin:22px 0 4px}
+.rig div{background:var(--card);border:1px solid var(--line);border-radius:14px;
+padding:11px 15px;font-size:14px}
+.toolbar{display:flex;gap:10px;align-items:center;margin:20px 0 16px;flex-wrap:wrap}
+.toolbar .count{color:var(--muted);font-size:14px;margin-left:auto}
+.toolbar input{max-width:320px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.person{background:var(--card);border:1px solid var(--line);border-radius:20px;
+padding:18px 20px}
+.p-head{display:flex;align-items:baseline;gap:10px}
+.p-name{font-size:19px;font-weight:600}
+.p-when{margin-left:auto;font-size:12.5px;color:var(--muted);white-space:nowrap}
+.p-meta{color:var(--muted);font-size:14px;margin-top:4px}
+.p-stats{display:flex;gap:16px;margin:14px 0;align-items:center;min-height:34px}
+.p-stat b{font-size:20px;font-weight:600;display:block;line-height:1.2}
+.p-stat span{font-size:12px;color:var(--muted)}
+.badge{display:inline-block;font-size:12.5px;padding:5px 12px;border-radius:999px}
+.badge.ok{background:rgba(34,181,124,.18);color:#5BD8A4}
+.badge.warn{background:rgba(240,102,107,.16);color:var(--alert)}
+.p-actions{display:flex;gap:8px;margin-top:12px}
+.p-actions>*{flex:1;font-size:14px;padding:11px}
+.empty{color:var(--muted);padding:44px;text-align:center;border:1px dashed var(--line);
+border-radius:20px}
+</style></head><body><div class="wrap">
+
+<div class="top">
+  <div class="who">
+    <h1>Панель менеджера</h1>
+    <p class="sub" id="whoami">Загружаю...</p>
+  </div>
+  <a class="btn" href="test" id="start">Начать новый тест</a>
+  <button class="ghost" id="logout">Выйти</button>
+</div>
+
+<div class="rig">
+  <div id="c-app"><span class="dot wait"></span>Программа</div>
+  <div id="c-device"><span class="dot wait"></span>Ободок</div>
+</div>
+<div class="state" id="state"></div>
+
+<div class="toolbar">
+  <input id="search" placeholder="поиск по имени">
+  <button class="ghost" id="refresh">Обновить</button>
+  <span class="count" id="count"></span>
+</div>
+<div class="cards" id="cards"></div>
+
+</div>
+<script>/* Общее для страниц сайта: облако, вход менеджера и связь с программой.
+
+   Ключ anon публичный по замыслу: он лежит на странице, и записи защищает
+   не он, а правила доступа базы. Чужие визиты по нему не прочитать. */
+const BRIDGE = "http://127.0.0.1:8765";
+const SESSION_KEY = "bhs_session";
+
+function cloudSettings() {
+  return {url: (window.BHS_CONFIG || {}).supabaseUrl || "",
+          key: (window.BHS_CONFIG || {}).supabaseKey || ""};
+}
+
+function saveSession(session) {
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+}
+
+function readSession() {
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); }
+  catch (e) { return null; }
+}
+
+function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
+}
+
+/* Токен живёт час. Обновляем заранее, иначе панель посреди разбора
+   вдруг покажет пустой список вместо визитов. */
+async function liveToken() {
+  const session = readSession();
+  if (!session) { return null; }
+  if (Date.now() / 1000 < session.expires_at - 300) { return session.access_token; }
+  const {url, key} = cloudSettings();
+  try {
+    const response = await fetch(url + "/auth/v1/token?grant_type=refresh_token", {
+      method: "POST",
+      headers: {"apikey": key, "Content-Type": "application/json"},
+      body: JSON.stringify({refresh_token: session.refresh_token})
+    });
+    if (!response.ok) { throw new Error("вход устарел"); }
+    const body = await response.json();
+    const fresh = {
+      access_token: body.access_token,
+      refresh_token: body.refresh_token || session.refresh_token,
+      manager_id: session.manager_id,
+      email: session.email,
+      expires_at: Math.floor(Date.now() / 1000) + (body.expires_in || 3600)
+    };
+    saveSession(fresh);
+    tellBridge(fresh);
+    return fresh.access_token;
+  } catch (e) {
+    clearSession();
+    return null;
+  }
+}
+
+/* Программе на ноутбуке вход нужен свой: визит она отправляет сама,
+   уже после того как посчитает профиль, и страница к тому моменту
+   может быть закрыта. */
+async function tellBridge(session) {
+  try {
+    await fetch(BRIDGE + "/manager", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(session)
+    });
+    return true;
+  } catch (e) { return false; }
+}
+
+async function bridgeStatus() {
+  try {
+    const response = await fetch(BRIDGE + "/status");
+    return await response.json();
+  } catch (e) { return null; }
+}
+
+function requireSession() {
+  if (!readSession()) { location.replace("login"); return false; }
+  return true;
+}
+
+function esc(value) {
+  return String(value == null ? "" : value).replace(/[&<>"']/g,
+    c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+}
+</script>
+<script src="config.js"></script>
+<script>
+let visits = [];
+
+function setState(text, kind){
+  const box = document.getElementById("state");
+  box.textContent = text || "";
+  box.className = "state" + (kind ? " " + kind : "");
+}
+
+function setCheck(id, on, text){
+  document.getElementById(id).innerHTML =
+    '<span class="dot ' + (on === null ? "wait" : (on ? "on" : "off")) + '"></span>' + text;
+}
+
+/* Оборудование проверяем прямо в панели: менеджер видит готовность
+   до того, как посадит ребёнка, а не после впустую проведённого теста. */
+async function checkEquipment(){
+  const status = await bridgeStatus();
+  const start = document.getElementById("start");
+  if(!status){
+    setCheck("c-app", false, "Программа не запущена");
+    setCheck("c-device", false, "Ободок недоступен");
+    start.textContent = "Начать тест без прибора";
+    return;
+  }
+  setCheck("c-app", true, "Программа работает");
+  setCheck("c-device", status.connected,
+    status.connected ? "Ободок готов, батарея " + (status.battery || 0) + "%"
+                     : "Ободок не найден");
+  start.textContent = "Начать новый тест";
+  // программу могли перезапустить: вход ей нужен свой, чтобы отправить визит
+  if(status.manager && !status.manager.signed_in){
+    const session = readSession();
+    if(session){ tellBridge(session); }
+  }
+}
+
+/* Визиты приходят из облака: панель работает с любого устройства, а не
+   только с ноутбука замера. Чужие записи база не отдаёт, это её правила. */
+async function load(){
+  const token = await liveToken();
+  if(!token){ location.replace("login"); return; }
+  const {url, key} = cloudSettings();
+  try{
+    const response = await fetch(url + "/rest/v1/neuro_visits"
+      + "?select=session_id,student_name,grade,track,started_at,has_eeg,iaf,pulse_bpm"
+      + "&order=created_at.desc&limit=200", {
+      headers: {"apikey": key, "Authorization": "Bearer " + token}
+    });
+    if(!response.ok){ throw new Error("код " + response.status); }
+    visits = await response.json();
+    setState("");
+  }catch(e){
+    setState("Не получилось загрузить визиты: " + e.message, true);
+  }
+  render();
+}
+
+function render(){
+  const query = (document.getElementById("search").value || "").toLowerCase();
+  const items = visits.filter(v => !query
+    || (v.student_name || "").toLowerCase().includes(query));
+  document.getElementById("count").textContent = items.length + " из " + visits.length;
+  const box = document.getElementById("cards");
+  if(!items.length){
+    box.innerHTML = '<div class="empty">' + (visits.length
+      ? "По этому запросу никого."
+      : "Пока ни одного визита. Первый появится сразу после теста.") + '</div>';
+    return;
+  }
+  box.innerHTML = items.map(v => {
+    const track = v.track === "kk" ? "казахское отделение" : "русское отделение";
+    const neuro = v.has_eeg
+      ? '<span class="badge ok">нейро-слой записан</span>'
+      : '<span class="badge warn">только поведение</span>';
+    const iaf = v.iaf ? '<div class="p-stat"><b>' + Number(v.iaf).toFixed(1)
+      + '</b><span>темп, Гц</span></div>' : "";
+    const pulse = v.pulse_bpm ? '<div class="p-stat"><b>' + v.pulse_bpm
+      + '</b><span>пульс</span></div>' : "";
+    const id = esc(v.session_id);
+    return '<div class="person">'
+      + '<div class="p-head"><span class="p-name">' + esc(v.student_name || "без имени")
+      + '</span><span class="p-when">' + esc(v.started_at) + '</span></div>'
+      + '<div class="p-meta">' + esc(v.grade || "класс не указан") + ' · ' + track + '</div>'
+      + '<div class="p-stats">' + iaf + pulse
+      + '<div class="p-stat">' + neuro + '</div></div>'
+      + '<div class="p-actions">'
+      + '<a class="btn" href="report?v=' + encodeURIComponent(id) + '">Отчёт</a>'
+      + '<button class="ghost" data-pdf="' + id + '">Скачать PDF</button>'
+      + '</div></div>';
+  }).join("");
+}
+
+/* PDF печатает программа на ноутбуке той же страницей, что показана
+   на экране, поэтому документ совпадает с разбором до последнего кольца. */
+document.getElementById("cards").addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-pdf]");
+  if(!button){ return; }
+  const id = button.getAttribute("data-pdf");
+  const label = button.textContent;
+  button.disabled = true;
+  button.textContent = "Готовлю...";
+  try{
+    const response = await fetch(BRIDGE + "/report/" + encodeURIComponent(id) + ".pdf");
+    if(!response.ok){ throw new Error("код " + response.status); }
+    const blob = await response.blob();
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = id + ".pdf";
+    document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 10000);
+    setState("");
+  }catch(e){
+    setState("PDF делает программа на ноутбуке замера. Отсюда он недоступен: "
+      + e.message, true);
+  }finally{
+    button.disabled = false;
+    button.textContent = label;
+  }
+});
+
+document.getElementById("search").addEventListener("input", render);
+document.getElementById("refresh").addEventListener("click", load);
+document.getElementById("logout").addEventListener("click", async () => {
+  clearSession();
+  try{ await fetch(BRIDGE + "/manager", {method: "DELETE"}); }catch(e){}
+  location.href = "login";
+});
+
+if(requireSession()){
+  document.getElementById("whoami").textContent =
+    readSession().email + " · ваши визиты, свежие сверху";
+  load();
+  checkEquipment();
+  setInterval(load, 30000);
+  setInterval(checkEquipment, 5000);
+}
+</script></body></html>

@@ -270,16 +270,16 @@ async function showBridgeState() {
     hint.style.color = "#F0666B";
     return;
   }
-  const place = status.operator_name || status.operator || "";
+  const place = (status.manager && status.manager.email) || "";
   if (!status.connected) {
     hint.innerHTML = "<b>Ободок не найден.</b> " + (status.device_error
       || "Включите его и подключите в Mind Tracker.")
       + "<br>Программа ждёт прибор и подхватит его сама."
-      + (place ? " Рабочее место: " + place + "." : "");
+      + (place ? " Менеджер: " + place + "." : "");
     hint.style.color = "#F0666B";
     return;
   }
-  hint.textContent = "Прибор на связи" + (place ? ", рабочее место: " + place : "")
+  hint.textContent = "Прибор на связи" + (place ? ", менеджер: " + place : "")
     + ". Батарея " + (status.battery || 0) + "%.";
   hint.style.color = "";
 }
@@ -337,15 +337,20 @@ async function runSession() {
   showMessage(t("done"),
     '<p class="hint">Отчёт готов. Передайте ноутбук специалисту.</p>'
     + '<div style="display:flex;gap:10px;justify-content:center;margin-top:18px">'
-    + '<a class="option start" href="panel" style="text-decoration:none">В панель</a>'
-    + '<a class="option" href="./" style="text-decoration:none">Следующий ребёнок</a>'
+    + '<a class="option start" href="admin" style="text-decoration:none">В панель</a>'
+    + '<a class="option" href="test" style="text-decoration:none">Следующий ребёнок</a>'
     + '</div>');
   if (saved) { console.log("запись сохранена", saved); }
 }
 
-// тест открывают из панели, а панель из входа: так рабочее место всегда
-// подписано, и визит не ляжет безымянным
-if (!sessionStorage.getItem("bhs_manager")) {
+// тест открывают из панели, а панель из входа: без входа визит некуда
+// отправить, он остался бы лежать на ноутбуке безымянным
+function signedIn() {
+  try { return !!JSON.parse(localStorage.getItem("bhs_session") || "null"); }
+  catch (e) { return false; }
+}
+
+if (!signedIn()) {
   location.replace("login");
 } else {
   document.getElementById("run").addEventListener("click", runSession);
