@@ -97,10 +97,10 @@ def build_config() -> None:
 
 
 def build_vercel() -> None:
-    """Настройки сайта. Лежат в корне: оттуда их читает сборка из репозитория,
-    а внутри public они оказались бы просто ещё одним выложенным файлом."""
+    """Настройки сайта. Лежат рядом со страницами: корнем сайта объявлена
+    именно эта папка, иначе Vercel видит в репозитории Python и пытается
+    собрать мост как веб-приложение, хотя мост работает на ноутбуке."""
     settings = {
-        "outputDirectory": "public",
         "cleanUrls": True,
         "headers": [{
             "source": "/(.*)",
@@ -110,7 +110,7 @@ def build_vercel() -> None:
             ],
         }],
     }
-    with open(os.path.join(ROOT, "vercel.json"), "w", encoding="utf-8") as fh:
+    with open(os.path.join(OUT_DIR, "vercel.json"), "w", encoding="utf-8") as fh:
         fh.write(json.dumps(settings, ensure_ascii=False, indent=2))
 
 
