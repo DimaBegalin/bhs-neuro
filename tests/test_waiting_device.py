@@ -116,3 +116,70 @@ def test_side_channels_are_empty_without_the_device(monkeypatch):
         device.stop()
     finally:
         device.close()
+
+
+# двойник ошибки моста: имя класса то же, CoreBluetooth в тестах не нужен
+BluetoothDead = type("BluetoothDead", (RuntimeError,), {})
+
+
+def test_dead_bluetooth_is_recognised_only_after_a_streak(monkeypatch):
+    """Служба Bluetooth молчит второй раз подряд: прибор уже не найдётся.
+
+    10.09 мост сутки стоял в таком состоянии при включённом ободке.
+    Один пропуск ещё прощается: после сна ноутбука служба может замешкаться.
+    """
+    import bridge.waiting_device as wd
+    monkeypatch.setattr(wd, "RETRY_S", 0.05)
+    calls = []
+
+    def dead():
+        calls.append(1)
+        raise BluetoothDead("системный Bluetooth не отвечает")
+
+    device = WaitingDevice(dead)
+    try:
+        assert _wait_until(lambda: len(calls) >= 1)
+        if len(calls) < 2:
+            assert device.bluetooth_dead is False
+        assert _wait_until(lambda: device.bluetooth_dead)
+        assert "не отвечает" in device.last_error
+    finally:
+        device.close()
+
+
+def test_missing_device_is_not_dead_bluetooth(monkeypatch):
+    """Выключенный ободок это штатно, перезапускать мост из-за него нельзя."""
+    import bridge.waiting_device as wd
+    monkeypatch.setattr(wd, "RETRY_S", 0.05)
+    calls = []
+
+    def missing():
+        calls.append(1)
+        raise RuntimeError("прибор не подключён к системе")
+
+    device = WaitingDevice(missing)
+    try:
+        assert _wait_until(lambda: len(calls) >= 3)
+        assert device.bluetooth_dead is False
+    finally:
+        device.close()
+
+
+def test_hung_search_counts_as_dead_bluetooth(monkeypatch):
+    """Запрос к системе повис: попытка не заканчивается, значит служба мертва."""
+    import bridge.waiting_device as wd
+    monkeypatch.setattr(wd, "RETRY_S", 0.05)
+    monkeypatch.setattr(wd, "STUCK_S", 0.2)
+    release = __import__("threading").Event()
+
+    def hung():
+        release.wait(5.0)
+        raise RuntimeError("прибор не подключён к системе")
+
+    device = WaitingDevice(hung)
+    try:
+        assert device.bluetooth_dead is False
+        assert _wait_until(lambda: device.bluetooth_dead, timeout=2.0)
+    finally:
+        release.set()
+        device.close()

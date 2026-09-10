@@ -17,6 +17,12 @@ import time
 
 CHANNELS = ["T3", "T4", "O1", "O2"]
 RETRY_S = 6.0
+# столько может длиться одна попытка, прежде чем считать, что запрос к
+# системному Bluetooth повис. Сама попытка укладывается в 20 секунд ожидания
+STUCK_S = 90.0
+# сколько раз подряд служба Bluetooth должна промолчать, чтобы признать её
+# мёртвой: один раз она может замешкаться после сна ноутбука
+DEAD_STREAK = 2
 
 
 class WaitingDevice:
@@ -27,6 +33,8 @@ class WaitingDevice:
         self._device = None
         self._on_chunk = None
         self.last_error = "прибор ещё не найден"
+        self._attempt_started: float | None = None
+        self._dead_streak = 0
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._loop, daemon=True)
@@ -38,6 +46,21 @@ class WaitingDevice:
     def connected(self) -> bool:
         device = self._device
         return bool(device is not None and device.connected)
+
+    @property
+    def bluetooth_dead(self) -> bool:
+        """Системный Bluetooth в этом процессе перестал отвечать.
+
+        Два признака: попытка поиска не заканчивается дольше STUCK_S (повис
+        синхронный запрос к службе) или служба несколько раз подряд не
+        сообщила даже своего состояния. Изнутри процесса это не лечится:
+        10.09 мост в таком состоянии простоял сутки при включённом ободке.
+        Сервер по этому признаку перезапускает процесс целиком.
+        """
+        started = self._attempt_started
+        if started is not None and time.monotonic() - started > STUCK_S:
+            return True
+        return self._dead_streak >= DEAD_STREAK
 
     @property
     def packets_received(self) -> int:
@@ -94,11 +117,17 @@ class WaitingDevice:
         with self._lock:
             if self._device is not None:
                 return
+            self._attempt_started = time.monotonic()
             try:
                 device = self._factory()
             except Exception as error:
                 self.last_error = str(error)[:120]
+                self._dead_streak = (self._dead_streak + 1
+                                     if _is_bluetooth_dead(error) else 0)
                 return
+            finally:
+                self._attempt_started = None
+            self._dead_streak = 0
             self.fs = getattr(device, "fs", self.fs)
             if self._on_chunk is not None:
                 device.start(self._on_chunk)
@@ -107,3 +136,13 @@ class WaitingDevice:
 
     def close(self) -> None:
         self._stop.set()
+
+
+def _is_bluetooth_dead(error: Exception) -> bool:
+    """Ошибка о мёртвой службе, а не об отсутствующем приборе.
+
+    Класс берём по имени, чтобы не тянуть CoreBluetooth в тесты и в
+    генератор: обёртка одинаково работает и там, где системного Bluetooth
+    нет вовсе.
+    """
+    return any(cls.__name__ == "BluetoothDead" for cls in type(error).__mro__)

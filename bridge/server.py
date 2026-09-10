@@ -3,6 +3,7 @@ import asyncio
 import glob
 import json
 import os
+import sys
 
 import re
 
@@ -94,6 +95,20 @@ def _behaviour_only_profile(recorder, lang: str) -> dict:
     }
 
 
+def _restart_process() -> None:
+    """Перезапуск моста тем же процессом: работает и под launchd, и из окна.
+
+    10.09 мост простоял сутки с мёртвым системным Bluetooth: 512 повисших
+    потоков, «не удалось подключиться за 20 секунд» при включённом ободке,
+    и никто, кроме перезапуска, ему не помог бы. Заменяем образ процесса
+    на свежий: слушающий порт при этом освобождается, launchd ничего
+    не замечает.
+    """
+    print("системный Bluetooth перестал отвечать, мост перезапускается",
+          flush=True)
+    os.execv(sys.executable, [sys.executable, "-m", "bridge.main", *sys.argv[1:]])
+
+
 def create_app(recorder, clock, device, realtime=None, mirror=None,
                app_db=None) -> FastAPI:
     app = FastAPI(title="BHS neuro bridge")
@@ -163,6 +178,11 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
                 if stall >= 10 and hasattr(device, "watchdog"):
                     device.watchdog()
                     stall = 0
+                # служба Bluetooth в процессе умерла: прибор не найдётся,
+                # сколько ни жди, лечит только перезапуск. Посреди записи
+                # не перезапускаемся, чтобы не потерять визит
+                if getattr(device, "bluetooth_dead", False) and not state["running"]:
+                    _restart_process()
         asyncio.create_task(watch())
 
     @app.get("/status")
