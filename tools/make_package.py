@@ -2,7 +2,9 @@
 """Сборка коробки для менеджера: один архив, который ставится в два клика.
 
 Внутри всё, что нужно на ноутбуке: мост, расчёт, установщик с автозапуском
-и ключи облака. Питон в архив не кладём, установщик ставит его сам.
+и ключи облака. Если рядом лежат припасы (вендор/), в коробку едут ещё
+готовый Python и все библиотеки: тогда установка не требует ни интернета,
+ни сборки из исходников, а значит и предложения поставить Xcode.
 
 Ключи облака попадают в архив, поэтому раздавать его надо адресно:
 почтой, мессенджером, общим диском школы. Выкладывать в открытый доступ
@@ -11,6 +13,7 @@
 Запуск: ./.venv/bin/python tools/make_package.py
 Результат: сборка/Нейропрофориентация-BHS.zip
 """
+import json
 import os
 import shutil
 import sys
@@ -52,6 +55,18 @@ def _add_dir(zf: zipfile.ZipFile, name: str) -> int:
     return count
 
 
+def _vendor_mark() -> dict | None:
+    """Под какую систему собраны припасы, если они вообще собраны."""
+    path = os.path.join(ROOT, "вендор", "метка.json")
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
+    except Exception:
+        return None
+
+
 def main() -> None:
     env_path = os.path.join(ROOT, ".env")
     if not os.path.exists(env_path):
@@ -71,10 +86,13 @@ def main() -> None:
     if os.path.exists(ZIP_PATH):
         os.remove(ZIP_PATH)
 
+    mark = _vendor_mark()
     total = 0
     with zipfile.ZipFile(ZIP_PATH, "w", zipfile.ZIP_DEFLATED) as zf:
         for name in INCLUDE_DIRS:
             total += _add_dir(zf, name)
+        if mark is not None:
+            total += _add_dir(zf, "вендор")
         for name in INCLUDE_FILES:
             path = os.path.join(ROOT, name)
             if not os.path.exists(path):
@@ -101,6 +119,13 @@ def main() -> None:
     size = os.path.getsize(ZIP_PATH) / 1024 / 1024
     print(f"собрано: {ZIP_PATH}")
     print(f"файлов: {total}, размер: {size:.1f} МБ")
+    if mark is None:
+        print("\nБЕЗ ПРИПАСОВ: при установке понадобится интернет.")
+        print("Чтобы собрать автономную коробку: tools/build_vendor.py")
+    else:
+        print(f"\nАвтономная коробка под {mark.get('platform')} "
+              f"{mark.get('machine')}: интернет при установке не нужен.")
+        print("На ноутбук другого вида установщик сам уйдёт в интернет.")
     print("\nВНИМАНИЕ: внутри ключи облака. Раздавать адресно,")
     print("в открытый доступ не выкладывать.")
 

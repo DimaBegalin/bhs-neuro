@@ -14,36 +14,66 @@ echo "  Нейропрофориентация BHS: установка"
 echo "=========================================="
 echo ""
 
-# --- 1. Python. Ставим свой, чтобы не зависеть от того, что уже стоит ---
-UV="$HOME/.local/bin/uv"
-if [ ! -x "$UV" ]; then
-  if command -v uv >/dev/null 2>&1; then
-    UV="$(command -v uv)"
+# --- 1. Python и библиотеки ---
+# Сначала пробуем припасы из коробки: ничего не качается и ничего не
+# собирается из исходников. Сборка из исходников заставляет macOS предлагать
+# инструменты разработчика, и менеджер видит предложение поставить Xcode.
+VENDOR="$APP_DIR/вендор"
+VPY="$VENDOR/python/bin/python3"
+PYBIN=""
+
+if [ -x "$VPY" ]; then
+  MARK=$("$VPY" -c "
+import json, platform, sys
+try:
+    m = json.load(open('$VENDOR/метка.json', encoding='utf-8'))
+except Exception:
+    sys.exit(1)
+print('да' if (m.get('platform') == sys.platform
+      and m.get('machine') == platform.machine()) else 'нет')
+" 2>/dev/null)
+  if [ "${MARK:-нет}" = "да" ]; then
+    echo "Ставлю из коробки, интернет не нужен..."
+    "$VPY" -m pip install --quiet --no-index \
+      --find-links "$VENDOR/колёса" -r requirements.txt && PYBIN="$VPY"
+    [ -n "$PYBIN" ] || echo "Припасы не подошли, пробую через интернет..."
   else
-    echo "Ставлю служебные файлы, это займёт минуту..."
-    curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1
-    UV="$HOME/.local/bin/uv"
+    echo "Припасы в коробке не для этого ноутбука, ставлю через интернет..."
   fi
 fi
-if [ ! -x "$UV" ]; then
-  echo "ОШИБКА: не получилось поставить служебные файлы."
-  echo "Проверьте интернет и запустите этот файл ещё раз."
-  read -r -p "Нажмите Enter, чтобы закрыть..."
-  exit 1
-fi
 
-echo "Готовлю программу..."
-"$UV" python install 3.12 >/dev/null 2>&1
-"$UV" venv --python 3.12 .venv >/dev/null 2>&1 || {
-  echo "ОШИБКА: не удалось подготовить окружение."
-  read -r -p "Нажмите Enter, чтобы закрыть..."
-  exit 1
-}
-VIRTUAL_ENV="$APP_DIR/.venv" "$UV" pip install --quiet -r requirements.txt || {
-  echo "ОШИБКА: не встали зависимости. Проверьте интернет."
-  read -r -p "Нажмите Enter, чтобы закрыть..."
-  exit 1
-}
+# Запасной путь: скачиваем Python и библиотеки. Нужен интернет.
+if [ -z "$PYBIN" ]; then
+  UV="$HOME/.local/bin/uv"
+  if [ ! -x "$UV" ]; then
+    if command -v uv >/dev/null 2>&1; then
+      UV="$(command -v uv)"
+    else
+      echo "Ставлю служебные файлы, это займёт минуту..."
+      curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1
+      UV="$HOME/.local/bin/uv"
+    fi
+  fi
+  if [ ! -x "$UV" ]; then
+    echo "ОШИБКА: нет интернета, а припасы в коробке не подошли."
+    echo "Попросите коробку, собранную под такой же ноутбук."
+    read -r -p "Нажмите Enter, чтобы закрыть..."
+    exit 1
+  fi
+  echo "Готовлю программу..."
+  "$UV" python install 3.12 >/dev/null 2>&1
+  "$UV" venv --python 3.12 .venv >/dev/null 2>&1 || {
+    echo "ОШИБКА: не удалось подготовить окружение."
+    read -r -p "Нажмите Enter, чтобы закрыть..."
+    exit 1
+  }
+  VIRTUAL_ENV="$APP_DIR/.venv" "$UV" pip install --quiet -r requirements.txt || {
+    echo "ОШИБКА: не встали зависимости. Проверьте интернет."
+    read -r -p "Нажмите Enter, чтобы закрыть..."
+    exit 1
+  }
+  PYBIN="$APP_DIR/.venv/bin/python"
+fi
 
 # Имя менеджера здесь не спрашиваем: он называет себя при входе на сайте,
 # и программа берёт его оттуда. Два места для одного имени неизбежно
@@ -60,7 +90,7 @@ cat > "$AGENT" <<PLIST
   <key>Label</key><string>$AGENT_ID</string>
   <key>ProgramArguments</key>
   <array>
-    <string>$APP_DIR/.venv/bin/python</string>
+    <string>$PYBIN</string>
     <string>-m</string>
     <string>bridge.main</string>
   </array>
