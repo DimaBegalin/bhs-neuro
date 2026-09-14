@@ -17,6 +17,7 @@
 import os
 import re
 import subprocess
+import sys
 import time
 
 ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -64,13 +65,16 @@ def _slug(raw: str) -> str:
 
 
 def _computer_name() -> str:
-    try:
-        out = subprocess.run(["scutil", "--get", "ComputerName"],
-                             capture_output=True, text=True, timeout=3)
-        if out.returncode == 0:
-            return out.stdout.strip()
-    except Exception:
-        pass
+    # на macOS у компьютера есть человеческое имя из настроек, на других
+    # системах довольствуемся сетевым: оно там и есть имя машины
+    if sys.platform == "darwin":
+        try:
+            out = subprocess.run(["scutil", "--get", "ComputerName"],
+                                 capture_output=True, text=True, timeout=3)
+            if out.returncode == 0:
+                return out.stdout.strip()
+        except Exception:
+            pass
     import socket
     return socket.gethostname()
 

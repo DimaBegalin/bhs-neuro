@@ -4,37 +4,20 @@
 поэтому поток читается напрямую. Прибор при этом ведёт штатное приложение,
 а мы подключаемся вторым и слушаем тот же поток: система это позволяет.
 
-Формат разобран 12.08.2026 на живом приборе:
-пакет 108 байт это 4 байта счётчика (шаг 8) и восемь блоков по 13 байт,
-в каждом блоке служебный байт и четыре значения по 3 байта little-endian
-со знаком, порядок каналов T3, T4, O1, O2.
+Формат пакетов и разбор байтов лежат в headband_protocol.py: они общие
+с каналом на bleak, которым мост читает прибор на Windows (bleak_device.py).
 """
 import time
 
-import numpy as np
 import objc
 from CoreBluetooth import CBCentralManager, CBUUID
 from Foundation import NSObject
 from libdispatch import dispatch_queue_create
 
-CHANNELS = ["T3", "T4", "O1", "O2"]
-SERVICE = "7E400001-B534-F393-68A9-E50E24DCCA95"
-STATUS = "7E400002-B534-F393-68A9-E50E24DCCA95"
-SIGNAL = "7E400004-B534-F393-68A9-E50E24DCCA95"
-RESIST = "7E400005-B534-F393-68A9-E50E24DCCA95"
-PULSE = "7E400008-B534-F393-68A9-E50E24DCCA95"
-SIDE_KEEP_S = 2400.0
-# порог хорошего контакта, тот же, что у библиотеки производителя в device.py.
-# Стояло 150 кОм, и это была наша выдумка: сухие электроды дают сотни килоом
-# даже на правильной посадке, поэтому мост звал плохими виски, которые
-# штатное приложение считало нормой, и диагност поправлял то, что не сломано
-GOOD_RESISTANCE_OHM = 2_000_000.0
-
-HEADER = 4
-BLOCK = 13
-SAMPLES_PER_PACKET = 8
-# отсчёты приходят сырыми значениями 24-битного АЦП
-ADC_TO_MICROVOLTS = 2.4 * 1e6 / (6.0 * (1 << 23))
+from bridge.headband_protocol import (  # noqa: F401  реэкспорт для тестов и tools
+    ADC_TO_MICROVOLTS, BLOCK, CHANNELS, GOOD_RESISTANCE_OHM, HEADER, PULSE,
+    RESIST, RESIST_ORDER, SAMPLES_PER_PACKET, SERVICE, SIDE_KEEP_S, SIGNAL,
+    STATUS, contact_from_ohms, decode_packet, decode_resist)
 
 
 class DeviceNotFound(RuntimeError):
@@ -59,17 +42,6 @@ STATE_MESSAGES = {
        "Конфиденциальность и безопасность, Bluetooth, включить python",
     4: "Bluetooth на ноутбуке выключен",
 }
-
-
-def decode_packet(packet: bytes) -> np.ndarray:
-    """Пакет в массив формы (4 канала, 8 отсчётов) в сырых единицах АЦП."""
-    out = np.empty((len(CHANNELS), SAMPLES_PER_PACKET), dtype=float)
-    for s in range(SAMPLES_PER_PACKET):
-        start = HEADER + s * BLOCK + 1
-        for c in range(len(CHANNELS)):
-            chunk = packet[start + c * 3: start + (c + 1) * 3]
-            out[c, s] = int.from_bytes(chunk, "little", signed=True)
-    return out
 
 
 class _Delegate(NSObject):
@@ -235,13 +207,10 @@ class BleHeadbandDevice:
 
     def _on_resist(self, data: bytes) -> None:
         """Живое сопротивление O1 O2 T3 T4: обновляет контакт и пишется в журнал."""
-        values = [int.from_bytes(data[4 + i * 4: 8 + i * 4], "little")
-                  for i in range(4)]
+        values = decode_resist(data)
         self.last_resist_raw = list(values)
-        order = ("O1", "O2", "T3", "T4")
-        for name, ohms in zip(order, values):
-            self._contact_quality[name] = max(
-                0.0, min(1.0, GOOD_RESISTANCE_OHM / max(ohms, 1.0)))
+        for name, ohms in zip(RESIST_ORDER, values):
+            self._contact_quality[name] = contact_from_ohms(ohms)
         self._on_side("05", data)
 
     def side_slice(self, start_monotonic: float, end_monotonic: float) -> list:

@@ -20,6 +20,21 @@ CHROME_CANDIDATES = (
     "/Applications/Chromium.app/Contents/MacOS/Chromium",
     "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
 )
+
+
+def _windows_candidates() -> tuple:
+    """Chrome и Edge на Windows. Edge есть на любой машине, поэтому PDF
+    печатается даже там, где Chrome не ставили."""
+    roots = [os.environ.get(name, "") for name in
+             ("PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA")]
+    tails = (("Google", "Chrome", "Application", "chrome.exe"),
+             ("Microsoft", "Edge", "Application", "msedge.exe"),
+             ("Chromium", "Application", "chrome.exe"))
+    return tuple(os.path.join(root, *tail) for root in roots if root for tail in tails)
+
+
+if os.name == "nt":
+    CHROME_CANDIDATES = _windows_candidates()
 TIMEOUT_S = 40
 POLL_S = 0.4
 
@@ -32,7 +47,7 @@ def find_browser() -> str:
     for path in CHROME_CANDIDATES:
         if os.path.exists(path):
             return path
-    for name in ("google-chrome", "chromium", "chrome"):
+    for name in ("google-chrome", "chromium", "chrome", "msedge"):
         found = shutil.which(name)
         if found:
             return found

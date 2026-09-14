@@ -106,6 +106,11 @@ def _restart_process() -> None:
     """
     print("системный Bluetooth перестал отвечать, мост перезапускается",
           flush=True)
+    if os.name == "nt":
+        # на Windows execv не подменяет процесс, а порождает второй рядом,
+        # и порт остаётся за старым. Поэтому просто выходим: обёртка
+        # windows/run-bridge.ps1 поднимает мост заново через три секунды
+        os._exit(3)
     os.execv(sys.executable, [sys.executable, "-m", "bridge.main", *sys.argv[1:]])
 
 

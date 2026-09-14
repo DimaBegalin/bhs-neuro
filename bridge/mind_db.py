@@ -21,9 +21,28 @@ import threading
 import time
 from datetime import datetime, timezone
 
-DB_PATH = os.path.expanduser(
-    "~/Library/Containers/com.brainbit.MindTracker/Data/Documents/"
-    "mind_tracker_local_db/data.mdb")
+# где приложение держит базу на разных системах. Это папка документов
+# приложения по меркам Flutter: на macOS внутри песочного контейнера,
+# на Windows обычные Документы пользователя. Путь для Windows не проверен
+# на живой машине: если файла там нет, слой просто не включается
+DB_CANDIDATES = (
+    os.path.expanduser("~/Library/Containers/com.brainbit.MindTracker/Data/Documents/"
+                       "mind_tracker_local_db/data.mdb"),
+    os.path.expanduser("~/Documents/mind_tracker_local_db/data.mdb"),
+    os.path.join(os.environ.get("LOCALAPPDATA", ""), "com.brainbit", "mind_tracker",
+                 "mind_tracker_local_db", "data.mdb"),
+)
+
+
+def find_db() -> str | None:
+    """Первый существующий путь к базе приложения, иначе None."""
+    for path in DB_CANDIDATES:
+        if path and os.path.exists(path):
+            return path
+    return None
+
+
+DB_PATH = find_db() or DB_CANDIDATES[0]
 PERIOD_S = 5.0
 # доли состояния, как их пишет приложение
 FIELDS = ("relaxation", "fatigue", "concentration", "involvement", "stress", "none")

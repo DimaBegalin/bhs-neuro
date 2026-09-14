@@ -20,10 +20,14 @@ INK = HexColor("#16181d")
 MUTED = HexColor("#6b7079")
 LEVEL_COLORS = {"strong": HexColor("#3f9f2c"), "solid": HexColor("#3a76c4"),
                 "costly": HexColor("#d1494f")}
+_WIN_FONTS = os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts")
 FONT_CANDIDATES = [
     ("BHS", "/System/Library/Fonts/Supplemental/Arial.ttf",
      "BHS-Bold", "/System/Library/Fonts/Supplemental/Arial Bold.ttf"),
     ("BHS", "/Library/Fonts/Arial.ttf", "BHS-Bold", "/Library/Fonts/Arial Bold.ttf"),
+    # Windows: тот же Arial лежит в системной папке шрифтов
+    ("BHS", os.path.join(_WIN_FONTS, "arial.ttf"),
+     "BHS-Bold", os.path.join(_WIN_FONTS, "arialbd.ttf")),
 ]
 
 

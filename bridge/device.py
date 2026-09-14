@@ -42,6 +42,8 @@ class BrainBitDevice:
     def __init__(self, scan_seconds: float = 10.0) -> None:
         self.fs = 250
         self.connected = False
+        self.packets_received = 0
+        self.reconnects = 0
         self._sensor = None
         self._on_chunk = None
         self._contact = {name: 0.0 for name in CHANNELS}
@@ -75,14 +77,43 @@ class BrainBitDevice:
         # канал команд у прибора готов не сразу после установления связи,
         # без этой паузы первая команда отвечает ERR_DATA_SEND
         time.sleep(SETTLE_S)
+        # обрыв связи библиотека сообщает колбэком: без него мост считал бы
+        # выключенный ободок подключённым, а страница теста ждала бы сигнал
+        try:
+            self._sensor.sensorStateChanged = self._on_state
+        except Exception:
+            pass
         self.connected = True
+
+    def _on_state(self, sensor, state) -> None:
+        self.connected = "InRange" in str(getattr(state, "name", state))
+
+    def watchdog(self) -> None:
+        """Поток встал: поднимаем связь и поток заново той же библиотекой.
+
+        Это основной канал на Windows, там прибор держит только мост, и
+        после обрыва никто, кроме него, связь не восстановит.
+        """
+        self.reconnects += 1
+        try:
+            if not self.connected:
+                self._sensor.connect()
+                time.sleep(SETTLE_S)
+                self.connected = True
+            if self._on_chunk is not None:
+                self.start(self._on_chunk)
+        except Exception:
+            self.connected = False
 
     def contact(self) -> dict:
         """Качество контакта по каналам от 0 до 1, больше это лучше."""
         return dict(self._contact)
 
     def battery(self) -> int:
-        return int(self._sensor.batt_power)
+        try:
+            return int(self._sensor.batt_power)
+        except Exception:
+            return 0
 
     def measure_contact(self, seconds: float = 3.0) -> dict:
         """Режим сопротивления. Идёт до записи, одновременно с сигналом нельзя."""
@@ -159,5 +190,6 @@ class BrainBitDevice:
     def _handle(self, sensor, data) -> None:
         chunk = np.array([[getattr(s, name) for s in data] for name in CHANNELS],
                          dtype=float) * VOLTS_TO_MICROVOLTS
+        self.packets_received += 1
         if self._on_chunk is not None:
             self._on_chunk(chunk)
