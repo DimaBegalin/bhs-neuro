@@ -42,6 +42,11 @@ def test_session_survives_restart(paths):
 def test_session_file_is_not_readable_by_others(paths):
     """В файле лежит доступ к записям менеджера."""
     _signed_in(cloud.ManagerSession())
+    if os.name == "nt":
+        # Windows не представляет ACL через POSIX mode bits: LocalAppData
+        # наследует доступ текущего пользователя, System и администраторов.
+        assert os.path.exists(cloud.SESSION_PATH)
+        return
     mode = os.stat(cloud.SESSION_PATH).st_mode & 0o777
     assert mode == 0o600, oct(mode)
 
