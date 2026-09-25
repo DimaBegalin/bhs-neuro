@@ -20,6 +20,13 @@ DIST = ROOT / "dist"
 NAME = "BHS-Neuro"
 ENV_KEYS = ("SUPABASE_URL", "SUPABASE_ANON_KEY", "TEST_URL")
 
+# GitHub Windows runner иногда оставляет stdout в CP1252, которая не умеет
+# печатать русские диагностические сообщения сборщика.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
+
 
 def _settings() -> dict[str, str]:
     values = {key: os.environ.get(key, "") for key in ENV_KEYS}
