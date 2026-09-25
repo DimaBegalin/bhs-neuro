@@ -109,33 +109,62 @@ class WaitingDevice:
 
     def _loop(self) -> None:
         while not self._stop.is_set():
+            device = self._device
+            if device is not None and not bool(getattr(device, "connected", False)):
+                self._discard_device(device)
             if self._device is None:
                 self._try_connect()
             self._stop.wait(RETRY_S)
+
+    def _discard_device(self, device) -> None:
+        with self._lock:
+            if self._device is not device:
+                return
+            self._device = None
+        try:
+            if hasattr(device, "close"):
+                device.close()
+            else:
+                device.stop()
+        except Exception:
+            pass
 
     def _try_connect(self) -> None:
         with self._lock:
             if self._device is not None:
                 return
-            self._attempt_started = time.monotonic()
-            try:
-                device = self._factory()
-            except Exception as error:
-                self.last_error = str(error)[:120]
-                self._dead_streak = (self._dead_streak + 1
-                                     if _is_bluetooth_dead(error) else 0)
+        # Поиск Bluetooth может висеть десятки секунд. Не держим lock всё это
+        # время, иначе завершение приложения тоже зависнет на том же поиске.
+        self._attempt_started = time.monotonic()
+        try:
+            device = self._factory()
+        except Exception as error:
+            self.last_error = str(error)[:120]
+            self._dead_streak = (self._dead_streak + 1
+                                 if _is_bluetooth_dead(error) else 0)
+            return
+        finally:
+            self._attempt_started = None
+        self._dead_streak = 0
+        self.fs = getattr(device, "fs", self.fs)
+        if self._on_chunk is not None:
+            device.start(self._on_chunk)
+        with self._lock:
+            if self._stop.is_set() or self._device is not None:
+                try:
+                    device.close() if hasattr(device, "close") else device.stop()
+                except Exception:
+                    pass
                 return
-            finally:
-                self._attempt_started = None
-            self._dead_streak = 0
-            self.fs = getattr(device, "fs", self.fs)
-            if self._on_chunk is not None:
-                device.start(self._on_chunk)
             self._device = device
-            self.last_error = ""
+        self.last_error = ""
 
     def close(self) -> None:
         self._stop.set()
+        device = self._device
+        if device is not None:
+            self._discard_device(device)
+        self._thread.join(timeout=2.0)
 
 
 def _is_bluetooth_dead(error: Exception) -> bool:

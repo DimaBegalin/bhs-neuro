@@ -6,8 +6,8 @@ from bridge.device import GOOD_RESISTANCE_OHM as SDK_THRESHOLD
 
 
 def _quality(ohms: float) -> float:
-    from bridge.ble_device import GOOD_RESISTANCE_OHM
-    return max(0.0, min(1.0, GOOD_RESISTANCE_OHM / max(ohms, 1.0)))
+    from bridge.headband_protocol import contact_from_ohms
+    return contact_from_ohms(ohms)
 
 
 def test_both_channels_judge_contact_by_the_same_threshold():
@@ -16,7 +16,7 @@ def test_both_channels_judge_contact_by_the_same_threshold():
     Разошлись однажды: мост звал плохими виски на 300-600 кОм, а штатное
     приложение показывало их нормой, и диагност поправлял исправную посадку.
     """
-    from bridge.ble_device import GOOD_RESISTANCE_OHM
+    from bridge.headband_protocol import GOOD_RESISTANCE_OHM
     assert GOOD_RESISTANCE_OHM == SDK_THRESHOLD
 
 

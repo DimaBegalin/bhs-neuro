@@ -19,6 +19,10 @@ CHROME_CANDIDATES = (
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "/Applications/Chromium.app/Contents/MacOS/Chromium",
     "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    os.path.expandvars(r"%PROGRAMFILES%\Google\Chrome\Application\chrome.exe"),
+    os.path.expandvars(r"%PROGRAMFILES(X86)%\Google\Chrome\Application\chrome.exe"),
+    os.path.expandvars(r"%PROGRAMFILES(X86)%\Microsoft\Edge\Application\msedge.exe"),
+    os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
 )
 TIMEOUT_S = 40
 POLL_S = 0.4
@@ -32,11 +36,11 @@ def find_browser() -> str:
     for path in CHROME_CANDIDATES:
         if os.path.exists(path):
             return path
-    for name in ("google-chrome", "chromium", "chrome"):
+    for name in ("google-chrome", "chromium", "chrome", "msedge"):
         found = shutil.which(name)
         if found:
             return found
-    raise BrowserNotFound("на этом ноутбуке нет Chrome, PDF печатать нечем")
+    raise BrowserNotFound("на этом ноутбуке нет Chrome или Edge, PDF печатать нечем")
 
 
 def html_to_pdf(html_path: str, pdf_path: str) -> str:

@@ -21,9 +21,23 @@ import threading
 import time
 from datetime import datetime, timezone
 
-DB_PATH = os.path.expanduser(
-    "~/Library/Containers/com.brainbit.MindTracker/Data/Documents/"
-    "mind_tracker_local_db/data.mdb")
+DB_CANDIDATES = (
+    os.path.expanduser("~/Library/Containers/com.brainbit.MindTracker/Data/Documents/"
+                       "mind_tracker_local_db/data.mdb"),
+    os.path.expanduser("~/Documents/mind_tracker_local_db/data.mdb"),
+    os.path.join(os.environ.get("LOCALAPPDATA", ""), "com.brainbit",
+                 "mind_tracker", "mind_tracker_local_db", "data.mdb"),
+)
+
+
+def find_db() -> str | None:
+    for path in DB_CANDIDATES:
+        if path and os.path.exists(path):
+            return path
+    return None
+
+
+DB_PATH = find_db() or DB_CANDIDATES[0]
 PERIOD_S = 5.0
 # доли состояния, как их пишет приложение
 FIELDS = ("relaxation", "fatigue", "concentration", "involvement", "stress", "none")
@@ -117,8 +131,14 @@ class MindDbMirror:
                 "app_state_points": len(self.track)}
 
     def reset_track(self) -> None:
+        """Начинает дорожку сессии без повторного чтения всей LMDB.
+
+        База Mind Tracker на рабочем ноутбуке вырастает до сотен мегабайт.
+        Повторный синхронный разбор здесь задерживал ответ /session/start и
+        браузер считал, что запись не началась. Фоновый поток уже наполнил
+        ``_seen``; достаточно очистить только дорожку текущего визита.
+        """
         self.track = []
-        self._seen = {s["at"] for s in read_states(self.path)}
 
     def stop(self) -> None:
         self._stop.set()

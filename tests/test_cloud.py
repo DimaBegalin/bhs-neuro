@@ -13,6 +13,7 @@ from bridge import cloud
 def paths(tmp_path, monkeypatch):
     monkeypatch.setattr(cloud, "ENV_PATH", str(tmp_path / ".env"))
     monkeypatch.setattr(cloud, "SESSION_PATH", str(tmp_path / ".manager_session.json"))
+    monkeypatch.setattr(cloud, "OUTBOX_DIR", tmp_path / "outbox")
     (tmp_path / ".env").write_text(
         "SUPABASE_URL=https://проект.supabase.co\nSUPABASE_ANON_KEY=anon\n",
         encoding="utf-8")
@@ -102,3 +103,28 @@ def test_dead_session_is_forgotten(paths, monkeypatch):
     with pytest.raises(RuntimeError):
         session.token()
     assert cloud.ManagerSession().snapshot()["signed_in"] is False
+
+
+def test_failed_upload_is_retried_from_durable_outbox(paths, monkeypatch):
+    """Интернет пропал на /stop: визит должен доехать после восстановления."""
+    import urllib.error
+    session = cloud.ManagerSession()
+    _signed_in(session)
+    online = {"value": False}
+    sent = []
+
+    def flaky_request(url, method="GET", body=None, headers=None):
+        if not online["value"]:
+            raise urllib.error.URLError("нет сети")
+        sent.append(body[0])
+        return {}
+
+    monkeypatch.setattr(cloud, "_request", flaky_request)
+    with pytest.raises(urllib.error.URLError):
+        cloud.push_visit(session, {"session_id": "retry-1"},
+                         {"has_eeg": False}, {}, "")
+    assert cloud.pending_count() == 1
+
+    online["value"] = True
+    assert cloud.flush_pending(session) == {"sent": 1, "pending": 0}
+    assert sent[0]["session_id"] == "retry-1"

@@ -24,6 +24,8 @@ FONT_CANDIDATES = [
     ("BHS", "/System/Library/Fonts/Supplemental/Arial.ttf",
      "BHS-Bold", "/System/Library/Fonts/Supplemental/Arial Bold.ttf"),
     ("BHS", "/Library/Fonts/Arial.ttf", "BHS-Bold", "/Library/Fonts/Arial Bold.ttf"),
+    ("BHS", os.path.expandvars(r"%WINDIR%\Fonts\arial.ttf"),
+     "BHS-Bold", os.path.expandvars(r"%WINDIR%\Fonts\arialbd.ttf")),
 ]
 
 

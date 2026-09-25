@@ -4,14 +4,17 @@ import glob
 import json
 import os
 import sys
+import threading
+from contextlib import asynccontextmanager
+from urllib.parse import urlsplit
 
 import re
 
 import numpy as np
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from analyzer.iaf import compute_iaf, bands_from_iaf
 from analyzer.behavior import block_behavior
@@ -22,8 +25,12 @@ from analyzer.preprocess import bandpass, notch, epoch, reject_epochs
 from analyzer.spectra import psd_of_epochs
 from bridge.operator import (new_session_id, operator_code, operator_name,
                              save_operator)
-from bridge.cloud import ManagerSession, configured as cloud_configured
+from bridge.cloud import (ManagerSession, configured as cloud_configured,
+                          pending_count)
+from bridge.paths import (PUBLIC_DIR, REPORTS_DIR, data_dir, ensure_runtime_dirs,
+                          settings as app_settings)
 from bridge.recorder import Recorder
+from bridge.storage import atomic_write_json, atomic_write_text
 
 LIVE_PERIOD_S = 0.2   # пять обновлений в секунду, как в штатном приложении
 FALLBACK_IAF = 10.0
@@ -51,7 +58,7 @@ def _check_session_id(session_id: str) -> str:
 
 class EventIn(BaseModel):
     kind: str
-    payload: dict = {}
+    payload: dict = Field(default_factory=dict)
     session_id: str | None = None
 
 
@@ -106,15 +113,72 @@ def _restart_process() -> None:
     """
     print("системный Bluetooth перестал отвечать, мост перезапускается",
           flush=True)
+    if getattr(sys, "frozen", False):
+        os.execv(sys.executable, [sys.executable, *sys.argv[1:]])
     os.execv(sys.executable, [sys.executable, "-m", "bridge.main", *sys.argv[1:]])
 
 
 def create_app(recorder, clock, device, realtime=None, mirror=None,
                app_db=None) -> FastAPI:
-    app = FastAPI(title="BHS neuro bridge")
-    # страница теста живёт на другом порту того же хоста
-    app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
-                       allow_headers=["*"])
+    ensure_runtime_dirs()
+    state = {"recorder": recorder, "out_dir": str(data_dir()), "phase": None,
+             "realtime": realtime, "running": False, "stopping": False,
+             "lang": "ru", "streaming": False, "last_stop_result": None}
+    manager = ManagerSession()
+    session_lock = threading.RLock()
+
+    async def watch_stream() -> None:
+        """Следит за потоком даже когда страница мониторинга закрыта."""
+        last, stall = -1, 0
+        while True:
+            await asyncio.sleep(1.0)
+            current = int(getattr(device, "packets_received", 0))
+            if current != last:
+                last, stall = current, 0
+                continue
+            stall += 1
+            if stall >= 10 and hasattr(device, "watchdog"):
+                await asyncio.to_thread(device.watchdog)
+                stall = 0
+            if getattr(device, "bluetooth_dead", False) and not state["running"]:
+                _restart_process()
+
+    async def sync_cloud() -> None:
+        from bridge.cloud import flush_pending
+        while True:
+            try:
+                await asyncio.to_thread(flush_pending, manager)
+            except Exception:
+                pass
+            await asyncio.sleep(30.0)
+
+    @asynccontextmanager
+    async def lifespan(_app):
+        tasks = [asyncio.create_task(watch_stream()),
+                 asyncio.create_task(sync_cloud())]
+        try:
+            yield
+        finally:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            for source in (mirror, app_db, device):
+                closer = getattr(source, "close", None) or getattr(source, "stop", None)
+                if closer is not None:
+                    try:
+                        closer()
+                    except Exception:
+                        pass
+
+    app = FastAPI(title="BHS neuro bridge", lifespan=lifespan)
+    configured_url = app_settings().get("TEST_URL", "")
+    origin = urlsplit(configured_url)
+    allowed_origins = ["http://127.0.0.1:8765", "http://localhost:8765"]
+    if origin.scheme in ("http", "https") and origin.netloc:
+        allowed_origins.append(f"{origin.scheme}://{origin.netloc}")
+    app.add_middleware(CORSMiddleware, allow_origins=allowed_origins,
+                       allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+                       allow_headers=["Content-Type"], allow_credentials=False)
 
     @app.middleware("http")
     async def _allow_private_network(request, call_next):
@@ -125,15 +189,20 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
         Без ответа на него сайт до моста не достучится, и тест на облачной
         странице шёл бы без нейро-слоя.
         """
-        response = await call_next(request)
+        try:
+            response = await call_next(request)
+        except Exception:
+            if request.url.path == "/session/stop":
+                # Разрешить повторить сохранение после временной ошибки диска.
+                state["stopping"] = False
+                state["running"] = True
+            raise
+        if request.url.path == "/session/stop" and response.status_code >= 500:
+            state["stopping"] = False
+            state["running"] = True
         if request.headers.get("access-control-request-private-network") == "true":
             response.headers["Access-Control-Allow-Private-Network"] = "true"
         return response
-    state = {"recorder": recorder, "out_dir": "data", "phase": None,
-             "realtime": realtime, "running": False, "lang": "ru",
-             "streaming": False}
-    manager = ManagerSession()
-
     def _feed(chunk: np.ndarray) -> None:
         """Живые метрики считаются всегда, запись только во время сессии.
 
@@ -157,40 +226,19 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
     except Exception:
         state["streaming"] = False
 
-    @app.on_event("startup")
-    async def _stall_watch() -> None:
-        """Сторож потока в самом мосте, а не в /live.
-
-        Раньше застой пакетов ловил только цикл веб-сокета, то есть сторож
-        работал, пока открыт монитор. На визитах монитор не открывают:
-        прибор дважды отваливался посреди работы (13.08 и 14.08), мост
-        молчал до ручного перезапуска, и дети застревали на экране контакта.
-        """
-        async def watch() -> None:
-            last, stall = -1, 0
-            while True:
-                await asyncio.sleep(1.0)
-                current = int(getattr(device, "packets_received", 0))
-                if current != last:
-                    last, stall = current, 0
-                    continue
-                stall += 1
-                if stall >= 10 and hasattr(device, "watchdog"):
-                    device.watchdog()
-                    stall = 0
-                # служба Bluetooth в процессе умерла: прибор не найдётся,
-                # сколько ни жди, лечит только перезапуск. Посреди записи
-                # не перезапускаемся, чтобы не потерять визит
-                if getattr(device, "bluetooth_dead", False) and not state["running"]:
-                    _restart_process()
-        asyncio.create_task(watch())
-
     @app.get("/status")
     def status() -> dict:
+        def safe(call, fallback):
+            try:
+                return call()
+            except Exception:
+                return fallback
+
         return {
             "connected": bool(device.connected),
-            "contact": device.contact(),
-            "battery": device.battery(),
+            "contact": safe(device.contact, {name: 0.0 for name in
+                                               ("T3", "T4", "O1", "O2")}),
+            "battery": safe(device.battery, 0),
             "t_s": clock.now_s(),
             "samples": int(state["recorder"].signal().shape[1]),
             "running": state["running"],
@@ -203,6 +251,7 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
             # почему прибора нет: менеджеру это видно прямо на странице теста
             "device_error": getattr(device, "last_error", "") or "",
             "manager": manager.snapshot(),
+            "cloud_pending": pending_count(),
         }
 
     @app.post("/event")
@@ -225,9 +274,22 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
         body.session_id = _check_session_id(body.session_id)
         # вторая сессия поверх первой стирает запись: на визите это значит
         # потерянный визит, поэтому старт отклоняется, пока идёт другая
-        if state["running"] and not body.force:
-            raise HTTPException(status_code=409,
-                                detail="предыдущая запись ещё не закрыта")
+        with session_lock:
+            if state["stopping"]:
+                raise HTTPException(status_code=409,
+                                    detail="предыдущая запись ещё сохраняется")
+            if state["running"] and not body.force:
+                raise HTTPException(status_code=409,
+                                    detail="предыдущая запись ещё не закрыта")
+            if state["running"] and body.force:
+                # Принудительный старт больше не выбрасывает прошлую запись.
+                old = state["recorder"]
+                old.save(state["out_dir"])
+                interrupted = dict(state.get("meta") or {})
+                interrupted.update({"session_id": old.session_id,
+                                    "interrupted": True})
+                atomic_write_json(os.path.join(
+                    state["out_dir"], f"{old.session_id}.meta.json"), interrupted)
         clock.reset()
         import time as _time
         state["mono_start"] = _time.monotonic()
@@ -241,8 +303,10 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
                          "operator": operator_code(),
                          "operator_name": operator_name()}
         state["recorder"] = Recorder(fs=device.fs, session_id=body.session_id)
-        state["out_dir"] = body.out_dir
+        state["out_dir"] = str(data_dir(body.out_dir))
         state["running"] = True
+        state["stopping"] = False
+        state["last_stop_result"] = None
         if mirror is not None:
             mirror.reset_track()
         if app_db is not None:
@@ -250,8 +314,13 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
         if state["realtime"] is not None:
             state["realtime"].set_bands(bands_from_iaf(FALLBACK_IAF))
         if not state.get("streaming"):
-            device.start(_feed)
-            state["streaming"] = True
+            try:
+                device.start(_feed)
+                state["streaming"] = True
+            except Exception as error:
+                state["streaming"] = False
+                return {"ok": True, "session_id": body.session_id,
+                        "warning": "запись начата без сигнала: " + str(error)[:120]}
         return {"ok": True, "session_id": body.session_id}  # id уже очищен
 
     @app.post("/session/stop")
@@ -262,16 +331,23 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
         Разбор с родителем начинается через несколько минут после сессии,
         поэтому расчёт идёт здесь же и его результат уже лежит на диске.
         """
-        state["running"] = False
-        rec = state["recorder"]
+        with session_lock:
+            if state["stopping"]:
+                raise HTTPException(status_code=409, detail="сессия уже сохраняется")
+            if not state["running"]:
+                if state.get("last_stop_result") is not None:
+                    return state["last_stop_result"]
+                raise HTTPException(status_code=409, detail="запись сессии не запущена")
+            state["running"] = False
+            state["stopping"] = True
+            rec = state["recorder"]
         npz_path, events_path = rec.save(state["out_dir"])
 
         # анкета визита рядом с записью: панель собирает карточки по ней
         meta = dict(state.get("meta") or {})
         meta["session_id"] = rec.session_id
         meta_path = os.path.join(state["out_dir"], f"{rec.session_id}.meta.json")
-        with open(meta_path, "w", encoding="utf-8") as fh:
-            json.dump(meta, fh, ensure_ascii=False, indent=2)
+        atomic_write_json(meta_path, meta)
 
         # побочные каналы за время сессии: пульс и сопротивление из моста
         import time as _time
@@ -282,11 +358,11 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
                 side_path = os.path.join(state["out_dir"],
                                          f"{rec.session_id}.side.jsonl")
                 start = state["mono_start"]
-                with open(side_path, "w", encoding="utf-8") as fh:
-                    for t, channel, raw in rows:
-                        fh.write(json.dumps({"t": round(t - start, 3),
-                                             "uuid": channel,
-                                             "data": raw.hex()}) + "\n")
+                text = "".join(json.dumps({"t": round(t - start, 3),
+                                            "uuid": channel,
+                                            "data": raw.hex()}) + "\n"
+                               for t, channel, raw in rows)
+                atomic_write_text(side_path, text)
         result = {"npz": npz_path, "events": events_path, "profile": None,
                   "profile_error": None, "mirror_profile": None}
 
@@ -295,8 +371,7 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
         if app_db is not None and app_db.track:
             app_path = os.path.join(state["out_dir"],
                                     f"{rec.session_id}.app_state.json")
-            with open(app_path, "w", encoding="utf-8") as fh:
-                json.dump(list(app_db.track), fh, ensure_ascii=False, indent=2)
+            atomic_write_json(app_path, list(app_db.track))
             result["app_state"] = app_path
 
         # упрощённый путь: показания прибора приходят из штатного приложения,
@@ -313,8 +388,7 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
                 rec.events, list(mirror.track), behavior)
             mirror_path = os.path.join(state["out_dir"],
                                        f"{rec.session_id}.mirror.json")
-            with open(mirror_path, "w", encoding="utf-8") as fh:
-                json.dump(mirror_profile, fh, ensure_ascii=False, indent=2)
+            atomic_write_json(mirror_path, mirror_profile)
             result["mirror_profile"] = mirror_path
         # Профиль, отчёт и выгрузка идут тремя независимыми шагами.
         # Раньше выгрузка была вложена в расчёт профиля, и визит без сигнала
@@ -328,8 +402,7 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
             result["profile_error"] = str(error)
             profile = _behaviour_only_profile(rec, state["lang"])
         profile_path = os.path.join(state["out_dir"], f"{rec.session_id}.profile.json")
-        with open(profile_path, "w", encoding="utf-8") as fh:
-            json.dump(profile, fh, ensure_ascii=False, indent=2)
+        atomic_write_json(profile_path, profile)
         result["profile"] = profile_path
 
         # полный отчёт для панели: считается здесь же, пока семья идёт
@@ -348,14 +421,13 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
                     report["pulse"] = pulse_from_ppg(ppg_series(channels.get("08", [])))
                 report_json = os.path.join(state["out_dir"],
                                            f"{rec.session_id}.report.json")
-                with open(report_json, "w", encoding="utf-8") as fh:
-                    json.dump(report, fh, ensure_ascii=False)
-                os.makedirs("web/reports", exist_ok=True)
+                atomic_write_json(report_json, report, indent=None)
+                os.makedirs(REPORTS_DIR, exist_ok=True)
                 caption = " · ".join(part for part in
                                      (meta.get("student_name"),
                                       meta.get("grade"),
                                       meta.get("started_at")) if part)
-                report_html = f"web/reports/{rec.session_id}.html"
+                report_html = str(REPORTS_DIR / f"{rec.session_id}.html")
                 build_report_page(report, report_html, caption or rec.session_id)
                 result["report"] = f"reports/{rec.session_id}.html"
             except Exception as report_error:
@@ -369,6 +441,9 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
             result["cloud"] = push_visit(manager, meta, profile, report, report_html)
         except Exception as cloud_error:
             result["cloud"] = "офлайн: " + str(cloud_error)[:120]
+        with session_lock:
+            state["stopping"] = False
+            state["last_stop_result"] = result
         return result
 
     class ManagerIn(BaseModel):
@@ -391,7 +466,9 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
         saved = manager.remember(body.model_dump())
         # имя рабочего места по почте: оно идёт в имя файлов визита
         save_operator(body.email.split("@")[0] or body.manager_id[:8])
-        return {"ok": True, **saved}
+        from bridge.cloud import flush_pending
+        synced = flush_pending(manager)
+        return {"ok": True, **saved, **synced}
 
     @app.get("/manager")
     def manager_state() -> dict:
@@ -411,17 +488,26 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
         просят не по одному разу.
         """
         session_id = _check_session_id(session_id)
-        html_path = os.path.join("web", "reports", f"{session_id}.html")
+        html_path = str(REPORTS_DIR / f"{session_id}.html")
         if not os.path.exists(html_path):
             raise HTTPException(status_code=404, detail="отчёт не найден")
-        pdf_path = os.path.join("web", "reports", f"{session_id}.pdf")
+        pdf_path = str(REPORTS_DIR / f"{session_id}.pdf")
         if (not os.path.exists(pdf_path)
                 or os.path.getmtime(pdf_path) < os.path.getmtime(html_path)):
             from report.to_pdf import html_to_pdf, BrowserNotFound
             try:
                 html_to_pdf(html_path, pdf_path)
-            except BrowserNotFound as error:
-                raise HTTPException(status_code=501, detail=str(error))
+            except BrowserNotFound:
+                # В Windows всегда есть системный Arial, поэтому компактный
+                # PDF можно собрать средствами, уже упакованными в EXE.
+                profile_path = os.path.join(state["out_dir"],
+                                            f"{session_id}.profile.json")
+                if not os.path.exists(profile_path):
+                    raise HTTPException(status_code=404, detail="профиль не найден")
+                from report.build_pdf import build_report
+                with open(profile_path, encoding="utf-8") as fh:
+                    profile = json.load(fh)
+                build_report(profile, pdf_path, profile.get("lang", "ru"))
             except Exception as error:
                 raise HTTPException(status_code=500, detail=str(error))
         return FileResponse(pdf_path, media_type="application/pdf",
@@ -431,7 +517,7 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
     def report_html(session_id: str):
         """Страница отчёта. Панель может жить на сайте, а отчёты здесь."""
         session_id = _check_session_id(session_id)
-        path = os.path.join("web", "reports", f"{session_id}.html")
+        path = str(REPORTS_DIR / f"{session_id}.html")
         if not os.path.exists(path):
             raise HTTPException(status_code=404, detail="отчёт не найден")
         return FileResponse(path, media_type="text/html; charset=utf-8")
@@ -464,7 +550,7 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
                     card["iaf"] = profile.get("iaf")
                 except Exception:
                     pass
-            if os.path.exists(f"web/reports/{sid}.html"):
+            if os.path.exists(REPORTS_DIR / f"{sid}.html"):
                 card["report"] = f"reports/{sid}.html"
             cards.append(card)
         cards.sort(key=lambda c: c["started_at"], reverse=True)
@@ -581,20 +667,14 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
 
     @app.websocket("/live")
     async def live(ws: WebSocket) -> None:
+        ws_origin = urlsplit(ws.headers.get("origin", ""))
+        local_origin = ws_origin.hostname in ("127.0.0.1", "localhost")
+        if ws_origin.netloc and not local_origin and ws.headers.get("origin") not in allowed_origins:
+            await ws.close(code=1008, reason="origin is not allowed")
+            return
         await ws.accept()
-        stalled = {"packets": -1, "ticks": 0}
         try:
             while True:
-                # сторож: поток иногда встаёт молча, поднимаем его обратно
-                current = int(getattr(device, "packets_received", 0))
-                if current == stalled["packets"]:
-                    stalled["ticks"] += 1
-                    if stalled["ticks"] == 20 and hasattr(device, "watchdog"):
-                        device.watchdog()
-                        stalled["ticks"] = 0
-                else:
-                    stalled["packets"] = current
-                    stalled["ticks"] = 0
                 payload = {"contact": device.contact(), "phase": state["phase"],
                            "running": state["running"]}
                 if state["realtime"] is not None:
@@ -607,5 +687,23 @@ def create_app(recorder, clock, device, realtime=None, mirror=None,
                 await asyncio.sleep(LIVE_PERIOD_S)
         except (WebSocketDisconnect, RuntimeError):
             return
+
+    @app.get("/app")
+    def local_app_root():
+        return RedirectResponse("/app/index")
+
+    @app.get("/app/{name}")
+    def local_app_file(name: str):
+        """Встроенный сайт делает EXE пригодным для работы без интернета."""
+        if not re.fullmatch(r"[A-Za-z0-9_.-]+", name):
+            raise HTTPException(status_code=404, detail="страница не найдена")
+        candidate = PUBLIC_DIR / name
+        if not candidate.suffix:
+            candidate = candidate.with_suffix(".html")
+        if not candidate.is_file():
+            raise HTTPException(status_code=404, detail="страница не найдена")
+        media = ("text/javascript; charset=utf-8" if candidate.suffix == ".js"
+                 else "text/html; charset=utf-8")
+        return FileResponse(candidate, media_type=media)
 
     return app

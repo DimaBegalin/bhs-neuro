@@ -27,6 +27,9 @@
 
 Установка программы на новый ноутбук: [МЕНЕДЖЕРУ.md](МЕНЕДЖЕРУ.md).
 
+Windows-версия собирается в один самодостаточный `BHS-Neuro.exe`; инструкция
+для менеджера и сборщика: [WINDOWS.md](WINDOWS.md).
+
 ## Разработка
 
 ```
@@ -36,6 +39,9 @@
 ./.venv/bin/python tools/build_site.py   # пересборка страниц сайта
 ./.venv/bin/python tools/make_package.py # коробка для менеджера
 ```
+
+Windows EXE автоматически собирается workflow `.github/workflows/build-windows.yml`
+или командой `py -3.12 tools\build_windows.py` на Windows x64.
 
 Страницы сайта собираются из `web/` в `public/`. Править надо исходники
 в `web/`, иначе сборка затрёт изменения.

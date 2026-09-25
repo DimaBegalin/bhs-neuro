@@ -19,15 +19,21 @@ import re
 import subprocess
 import time
 
-ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                        ".env")
+from bridge.paths import ENV_PATH as APP_ENV_PATH, FROZEN, settings
+from bridge.storage import atomic_write_text
+
+ENV_PATH = APP_ENV_PATH  # имя оставлено для тестовых подмен и старых инструментов
 FALLBACK = "bhs"
 CODE_MAX = 12
 
 
 def _env(key: str) -> str:
+    # Переменные окружения и встроенная конфигурация нужны упакованному EXE.
+    configured = (settings().get(key, "")
+                  if FROZEN and os.path.abspath(ENV_PATH) == os.path.abspath(APP_ENV_PATH)
+                  else os.environ.get(key, ""))
     if not os.path.exists(ENV_PATH):
-        return ""
+        return configured
     try:
         for line in open(ENV_PATH, encoding="utf-8"):
             line = line.strip()
@@ -37,8 +43,8 @@ def _env(key: str) -> str:
             if name.strip() == key:
                 return value.strip()
     except OSError:
-        return ""
-    return ""
+        return configured
+    return configured
 
 
 # кириллица в коде недопустима: он идёт в имя файла визита и в облако.
@@ -106,8 +112,7 @@ def save_operator(name: str) -> dict:
     if code:
         kept.append(f"OPERATOR={code}")
         kept.append(f"OPERATOR_NAME={name}")
-    with open(ENV_PATH, "w", encoding="utf-8") as fh:
-        fh.write("\n".join(kept) + "\n")
+    atomic_write_text(ENV_PATH, "\n".join(kept) + "\n")
     return {"operator": operator_code(), "operator_name": operator_name()}
 
 

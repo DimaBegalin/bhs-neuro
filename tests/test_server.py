@@ -45,6 +45,24 @@ def test_session_start_and_stop_produce_files(tmp_path):
     assert body["events"].endswith(".events.json")
 
 
+def test_session_stop_is_idempotent(tmp_path):
+    """Повтор кнопки/запроса не должен пересчитать или испортить визит."""
+    client, _, _ = _client()
+    client.post("/session/start", json={"session_id": "once",
+                                        "out_dir": str(tmp_path)})
+    first = client.post("/session/stop")
+    second = client.post("/session/stop")
+    assert first.status_code == second.status_code == 200
+    assert second.json() == first.json()
+
+
+def test_embedded_local_site_is_served():
+    client, _, _ = _client()
+    response = client.get("/app/test")
+    assert response.status_code == 200
+    assert "BHS" in response.text
+
+
 def test_calibration_refuses_without_data():
     client, _, _ = _client()
     body = client.post("/calibration/finish").json()

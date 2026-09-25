@@ -1,7 +1,7 @@
 """Декодер пакета проверяется на синтетическом пакете с известными значениями."""
 import numpy as np
 
-from bridge.ble_device import decode_packet, CHANNELS, SAMPLES_PER_PACKET
+from bridge.headband_protocol import decode_packet, CHANNELS, SAMPLES_PER_PACKET
 
 
 def _build_packet(values):

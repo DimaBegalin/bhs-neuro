@@ -6,7 +6,6 @@
 """
 import json
 import sys
-from pathlib import Path
 
 from analyzer.career_map import build_career
 from analyzer.insights import build_insights
@@ -14,6 +13,7 @@ from analyzer.human_scale import DOMAIN_HUMAN, METRICS, RHYTHMS, tempo_words, to
 from report.blocks import donut_ring
 from report.viz import (DOMAIN_COLORS, effort_map, hbar, order_bars,
                         score_ring, session_tracks)
+from bridge.storage import atomic_write_text
 
 BAND_KEYS = ["delta", "theta", "alpha", "beta", "gamma"]
 BAND_COLORS = {"delta": "#3E4585", "theta": "#535BA4", "alpha": "#22B57C",
@@ -448,7 +448,7 @@ def build(report, out_path, child=""):
     html = TEMPLATE.replace("__WHO__", child or ("сессия " + report["session_id"]))
     html = html.replace("__PANE1__", pane1).replace("__PANEINS__", pane_insights)
     html = html.replace("__PANE2__", pane2)
-    Path(out_path).write_text(html, encoding="utf-8")
+    atomic_write_text(out_path, html)
     return out_path
 
 

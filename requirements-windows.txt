@@ -1,0 +1,10 @@
+# Зависимости, которые реально входят в единый Windows EXE.
+numpy==2.1.3
+scipy==1.14.1
+setuptools==75.6.0
+fastapi==0.115.6
+uvicorn==0.34.0
+websockets==14.1
+pyneurosdk2==1.0.15
+reportlab==4.2.5
+pyinstaller>=6.11,<7

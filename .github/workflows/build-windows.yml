@@ -1,0 +1,56 @@
+name: Windows EXE
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      TEST_URL: ${{ vars.TEST_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          architecture: "x64"
+          cache: pip
+      - name: Install test and Windows build dependencies
+        run: python -m pip install -r requirements-windows.txt pytest==8.3.4 httpx==0.28.1
+      - name: Test
+        run: python -m pytest tests -q
+      - name: Build one-file application
+        run: python tools/build_windows.py
+      - name: Smoke test executable
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath "dist\BHS-Neuro.exe" -ArgumentList "--fake --no-browser --port 18765" -PassThru
+          try {
+            $ready = $false
+            for ($i = 0; $i -lt 120; $i++) {
+              Start-Sleep -Milliseconds 500
+              try {
+                $status = Invoke-RestMethod -Uri "http://127.0.0.1:18765/status" -TimeoutSec 2
+                if ($status.connected) { $ready = $true; break }
+              } catch {}
+            }
+            if (-not $ready) { throw "EXE did not become ready" }
+            $page = Invoke-WebRequest -Uri "http://127.0.0.1:18765/app/test" -TimeoutSec 5
+            if ($page.StatusCode -ne 200) { throw "embedded site is unavailable" }
+          } finally {
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+          }
+      - name: SHA-256
+        shell: pwsh
+        run: Get-FileHash dist\BHS-Neuro.exe -Algorithm SHA256 | Format-List | Out-File dist\BHS-Neuro.sha256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BHS-Neuro-Windows-x64
+          path: |
+            dist/BHS-Neuro.exe
+            dist/BHS-Neuro.sha256.txt
+          if-no-files-found: error

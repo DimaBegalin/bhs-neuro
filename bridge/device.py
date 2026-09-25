@@ -7,7 +7,7 @@ import time
 
 import numpy as np
 from neurosdk.scanner import Scanner
-from neurosdk.cmn_types import SensorFamily, SensorCommand
+from neurosdk.cmn_types import SensorFamily, SensorCommand, SensorState
 
 CHANNELS = ["T3", "T4", "O1", "O2"]
 # в SDK нет отдельного семейства Headband: ободок опознаётся как одно из
@@ -42,8 +42,11 @@ class BrainBitDevice:
     def __init__(self, scan_seconds: float = 10.0) -> None:
         self.fs = 250
         self.connected = False
+        self.packets_received = 0
+        self.last_error = ""
         self._sensor = None
         self._on_chunk = None
+        self._streaming = False
         self._contact = {name: 0.0 for name in CHANNELS}
         self._connect(scan_seconds)
 
@@ -72,10 +75,16 @@ class BrainBitDevice:
         self._sensor = scanner.create_sensor(found[0])
         self.info = found[0]
         self.fs = _frequency_to_hz(self._sensor.sampling_frequency)
+        self._sensor.sensorStateChanged = self._on_state
         # канал команд у прибора готов не сразу после установления связи,
         # без этой паузы первая команда отвечает ERR_DATA_SEND
         time.sleep(SETTLE_S)
         self.connected = True
+
+    def _on_state(self, _sensor, state) -> None:
+        self.connected = state != SensorState.StateOutOfRange
+        if not self.connected:
+            self.last_error = "связь с ободком потеряна"
 
     def contact(self) -> dict:
         """Качество контакта по каналам от 0 до 1, больше это лучше."""
@@ -129,6 +138,8 @@ class BrainBitDevice:
         видит отвалившийся электрод сразу, а не после сессии.
         """
         self._on_chunk = on_chunk
+        if self._streaming:
+            return
         self._subscribe("signal", self._handle)
         try:
             self._subscribe("resist", self._handle_resist)
@@ -137,14 +148,44 @@ class BrainBitDevice:
         except Exception:
             self._command(SensorCommand.StartSignal)
             self._combined = False
+        self._streaming = True
+        self.last_error = ""
 
     def stop(self) -> None:
+        if not self._streaming or self._sensor is None:
+            return
         if getattr(self, "_combined", False):
             self._command(SensorCommand.StopSignalAndResist)
             self._sensor.unset_resist_callbacks()
         else:
             self._command(SensorCommand.StopSignal)
         self._sensor.unset_signal_callbacks()
+        self._streaming = False
+
+    def watchdog(self) -> None:
+        """Перезапускает поток SDK, если связь жива, а пакеты остановились."""
+        callback = self._on_chunk
+        try:
+            self.stop()
+            if callback is not None and self.connected:
+                self.start(callback)
+        except Exception as error:
+            self.last_error = f"не удалось перезапустить поток: {error}"[:120]
+            self.connected = False
+
+    def close(self) -> None:
+        try:
+            self.stop()
+        except Exception:
+            pass
+        sensor, self._sensor = self._sensor, None
+        if sensor is not None:
+            sensor.sensorStateChanged = None
+            try:
+                sensor.disconnect()
+            except Exception:
+                pass
+        self.connected = False
 
     def _handle_resist(self, sensor, data) -> None:
         for name in CHANNELS:
@@ -159,5 +200,10 @@ class BrainBitDevice:
     def _handle(self, sensor, data) -> None:
         chunk = np.array([[getattr(s, name) for s in data] for name in CHANNELS],
                          dtype=float) * VOLTS_TO_MICROVOLTS
+        self.packets_received += 1
         if self._on_chunk is not None:
-            self._on_chunk(chunk)
+            try:
+                self._on_chunk(chunk)
+            except Exception as error:
+                # Исключение записи не должно убивать нативный callback SDK.
+                self.last_error = f"ошибка обработки сигнала: {error}"[:120]

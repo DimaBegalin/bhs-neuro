@@ -9,9 +9,9 @@ websockets==14.1
 # прибор
 pyneurosdk2==1.0.15  # ниже 1.0.15 нет семейства LEHeadband, прибор не находится
 brainflow==5.16.0
-pyobjc-framework-CoreBluetooth==12.2.2  # прямой Bluetooth-канал моста
-pyobjc-framework-libdispatch==12.2.2
-pyobjc-framework-Quartz==12.2.2  # зеркало окна штатного приложения
+pyobjc-framework-CoreBluetooth==12.2.2; sys_platform == "darwin"  # прямой Bluetooth-канал моста
+pyobjc-framework-libdispatch==12.2.2; sys_platform == "darwin"
+pyobjc-framework-Quartz==12.2.2; sys_platform == "darwin"  # зеркало окна штатного приложения
 # отчёт
 reportlab==4.2.5
 # тесты

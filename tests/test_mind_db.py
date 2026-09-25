@@ -56,3 +56,17 @@ def test_missing_database_is_not_an_error(tmp_path):
 def test_broken_json_does_not_break_the_rest(tmp_path):
     blob = (b'{"relaxation":oops}' + _page(STATE, b"2026-08-13T10:54:06"))
     assert len(read_states(_write(tmp_path, blob))) == 1
+
+
+def test_reset_track_never_rereads_large_database(tmp_path, monkeypatch):
+    """Старт визита должен отвечать сразу даже при большой базе Mind Tracker."""
+    from bridge import mind_db
+    mirror = object.__new__(mind_db.MindDbMirror)
+    mirror.track = [{"old": True}]
+    mirror._seen = {"2026-01-01T00:00:00"}
+    mirror.path = str(tmp_path / "huge.mdb")
+    monkeypatch.setattr(mind_db, "read_states",
+                        lambda path: (_ for _ in ()).throw(AssertionError("перечитано")))
+    mirror.reset_track()
+    assert mirror.track == []
+    assert mirror._seen == {"2026-01-01T00:00:00"}

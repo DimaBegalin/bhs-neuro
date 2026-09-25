@@ -21,3 +21,5 @@ docs/первая_живая_запись.jsonl
 .manager_session.json
 .vercel
 .env*
+build/
+dist/
