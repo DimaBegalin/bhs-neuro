@@ -6,6 +6,7 @@
 
     python -m app.main                      # Mac: проигрыватель последней записи
     python -m app.main --device sim         # имитатор
+    python -m app.main --device ble         # живой ободок на Mac через Mind Tracker
     python -m app.main --replay путь.npz --speed 2
 """
 from __future__ import annotations
@@ -47,6 +48,9 @@ def device_setup(kind: str, replay: Path | None, speed: float):
     if kind == "sdk":
         from app.device.sdk import SdkDevice
         return SdkDevice, {}
+    if kind == "ble":
+        from app.device.mac_ble import MacBleDevice
+        return MacBleDevice, {}
     if kind == "sim":
         from app.device.sim import SimDevice
         sim = SimDevice(speed=speed)
@@ -158,7 +162,7 @@ def _hard_exit(code: int) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Профориентация BHS с нейромониторингом")
-    parser.add_argument("--device", choices=("sdk", "replay", "sim"),
+    parser.add_argument("--device", choices=("sdk", "ble", "replay", "sim"),
                         default="sdk" if sys.platform == "win32" else "replay")
     parser.add_argument("--replay", type=Path, default=None, help="запись .npz для проигрывателя")
     parser.add_argument("--speed", type=float, default=1.0, help="ускорение проигрывателя и имитатора")
