@@ -35,10 +35,10 @@ def test_full_session_with_headband(tmp_path):
     done = api.session_finish()
     assert done["status"] == "finished" and done["samples"] > 0
     folder = tmp_path / "sessions" / started["id"]
-    meta = json.loads((folder / "meta.json").read_text())
+    meta = json.loads((folder / "meta.json").read_text(encoding="utf-8"))
     assert meta["student"] == {"name": "Айгерим Нурланова", "grade": 9, "lang": "kk"}
     assert started["id"].startswith("test-menedzher-") or started["id"].startswith("local-")
-    events = json.loads((folder / "events.json").read_text())
+    events = json.loads((folder / "events.json").read_text(encoding="utf-8"))
     kinds = [e["kind"] for e in events]
     assert kinds[0] == "session_start" and kinds[-1] == "session_end"
     assert np.load(folder / "signal.npz")["signal"].shape[0] == 4

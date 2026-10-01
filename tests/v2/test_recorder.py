@@ -27,7 +27,7 @@ def test_events_carry_sample_index_and_signal_round_trips(tmp_path):
     data = np.load(npz)
     assert int(data["fs"]) == 250
     np.testing.assert_allclose(data["signal"], signal.astype(np.float32))
-    assert json.loads(events.read_text())[0]["payload"] == {"card": "R1"}
+    assert json.loads(events.read_text(encoding="utf-8"))[0]["payload"] == {"card": "R1"}
     assert not (tmp_path / "signal.part").exists()
 
 
@@ -40,7 +40,7 @@ def test_crash_leaves_recoverable_part_files(tmp_path):
     assert recover(tmp_path, 250)
     data = np.load(tmp_path / "signal.npz")
     assert data["signal"].shape == (4, 1250)  # сброшено на диск до «падения»
-    assert json.loads((tmp_path / "events.json").read_text())[0]["kind"] == "background_start"
+    assert json.loads((tmp_path / "events.json").read_text(encoding="utf-8"))[0]["kind"] == "background_start"
 
 
 def test_without_headband_events_have_no_sample(tmp_path):
