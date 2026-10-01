@@ -215,19 +215,40 @@ function showSummary(result) {
       h("button", { class: "primary big", onclick: () => showNewStudent() }, "Следующий ученик"))));
 }
 
+const TYPE_NAMES = { R: "практический", I: "исследовательский", A: "творческий",
+                     S: "социальный", E: "предпринимательский", C: "организационный" };
+const LEVEL_TEXT = { bright: "выражены ярко", moderate: "выражены умеренно", flat: "пока не выражены" };
+const SPATIAL_TEXT = { strong: "сильная сторона", middle: "средний уровень", zone: "зона развития" };
+const STYLE_NAMES = { E: "Общительность", A: "Доброжелательность", C: "Организованность",
+                      I: "Любознательность" };
+const FLAG_TEXT = { too_fast: "отвечал(а) слишком быстро", straightlining: "много одинаковых ответов подряд",
+                    inconsistent: "опросник и карточки сильно расходятся", guessing: "задачи похоже решались наугад" };
+
+// Итог для разговора менеджера с учеником. Оформленные саммари и PDF — этап 3.
 function resultBlock(summary) {
   const r = summary.result;
   if (!r) return h("p", { class: "error" }, `Итог не посчитан: ${summary.result_error || "нет данных"}`);
-  const level = { bright: "ярко", moderate: "умеренно", flat: "пока не выражены" }[r.interests.level];
-  const top = r.recommendation.clusters.filter((c) => r.recommendation.top.includes(c.cluster));
+  const top = r.recommendation.top.map((id) => r.recommendation.clusters.find((c) => c.cluster === id));
+  const ws = r.work_style;
   return h("div", { class: "stack" },
-    h("p", {}, `Интересы: ${r.interests.top.join(", ")} — ${level}`),
-    h("p", { class: "muted" }, Object.entries(r.interests.scores).map(([k, v]) => `${k} ${Math.round(v)}`).join(" · ")),
-    ...top.map((c) => h("p", {}, h("b", {}, c.cluster), " — ",
-      c.professions.map((p) => p.title.ru).join(", ") || "нет профессий со сходством ≥ 0,3")),
-    h("p", { class: "muted" }, `Пространственные задачи: ${r.spatial.correct} из ${r.spatial.total}`),
-    r.flags.length ? h("p", { class: "error" }, `Флаги: ${r.flags.join(", ")}`) : null,
-    h("p", { class: "muted" }, "Оформленные саммари и отчёты — этап 3."));
+    h("h3", {}, `Интересы ${LEVEL_TEXT[r.interests.level]}`),
+    h("p", {}, r.interests.top.map((k) => `${TYPE_NAMES[k]} (${Math.round(r.interests.scores[k])})`).join(" · ")),
+    r.interests.level === "flat"
+      ? h("p", { class: "muted" }, "Ярких предпочтений пока нет: лучше предложить пробы в разных направлениях, чем выбирать одно.")
+      : null,
+    h("h3", {}, "Близкие направления"),
+    ...(top.length ? top.map((c, i) => h("p", {}, h("b", {}, `${i + 1}. ${c.title.ru}`), " — ",
+      c.professions.map((p) => p.title.ru).join(", ") || "профессий с заметным сходством нет"))
+      : [h("p", { class: "muted" }, "Не определены: профиль интересов почти ровный, сравнивать с профессиями не с чем.")]),
+    h("h3", {}, "Задачи на воображение"),
+    h("p", {}, `${r.spatial.correct} из ${r.spatial.total} — ${SPATIAL_TEXT[r.spatial.level] || "нет данных"}`),
+    ws ? h("h3", {}, "Стиль работы") : null,
+    ws ? h("p", {}, [...Object.entries(STYLE_NAMES).map(([k, n]) => `${n} ${Math.round(ws.scores[k])}`),
+                     `Эмоциональная устойчивость ${Math.round(ws.stability)}`].join(" · ")) : null,
+    r.discrepancies.length ? h("p", {}, "Расхождения с карточками: " + r.discrepancies.map((d) =>
+      `${TYPE_NAMES[d.type]} — ${d.questionnaire === "high" ? "в опроснике высоко, карточки «не очень»" : "в опроснике низко, карточки «интересно»"}`).join("; ")) : null,
+    r.flags.length ? h("p", { class: "error" }, "Осторожно с выводами: " + r.flags.map((f) => FLAG_TEXT[f] || f).join(", ")) : null,
+    h("p", { class: "muted" }, "Шкалы 0–100 — относительно самого ученика, это не оценка и не сравнение с другими."));
 }
 
 // ── экраны ученика ──────────────────────────────────────────────────────

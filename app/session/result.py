@@ -53,7 +53,7 @@ def collect(events: list[dict]) -> dict:
 
 def attention_discrepancies(profile, eeg_cards: dict | None) -> list[dict]:
     """Тип в верхней двойке опросника, а внимание к его карточкам в нижней двойке, и наоборот."""
-    if not eeg_cards or not eeg_cards.get("shown"):
+    if not eeg_cards or not eeg_cards.get("shown") or profile.level == "flat":
         return []
     order = eeg_cards["type_order"]
     if len(order) < 4:
@@ -73,7 +73,11 @@ def build_result(folder: Path) -> dict:
     items = content.load("interests")["items"]
     profile = score_interests(items, {a["item"]: a["value"] for a in answers["interest"]})
     spatial = score_spatial(answers["spatial"], **content.spatial_rules())
-    ranking = rank(profile.vector(), content.occupations(), [c["id"] for c in content.clusters()])
+    clusters = content.clusters()
+    ranking = rank(profile.vector(), content.occupations(), [c["id"] for c in clusters])
+    titles = {c["id"]: c["title"] for c in clusters}
+    for cluster in ranking["clusters"]:
+        cluster["title"] = titles[cluster["cluster"]]
     eeg = None
     npz = folder / "signal.npz"
     if meta.get("with_headband") and npz.exists():

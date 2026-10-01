@@ -34,7 +34,13 @@ def card_votes(cards: list[dict]) -> dict[str, list[bool]]:
 
 
 def discrepancies(profile: InterestProfile, cards: list[dict]) -> list[dict]:
-    """Тип в верхней двойке опросника, а все его карточки «нет», или наоборот."""
+    """Тип в верхней двойке опросника, а все его карточки «нет», или наоборот.
+
+    У плоского профиля верх и низ выбраны из почти равных баллов, поэтому
+    расхождений для него не бывает.
+    """
+    if profile.level == "flat":
+        return []
     order = profile.top(6)
     high, low = set(order[:2]), set(order[-2:])
     found = []

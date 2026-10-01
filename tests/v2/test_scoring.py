@@ -86,3 +86,9 @@ def test_bigfive_reverse_keys_and_stability():
     r = score_bigfive(items, {"a": 5, "b": 1, "n": 2})
     assert r["scores"]["C"] == 100.0 and r["scores"]["N"] == 25.0 and r["stability"] == 75.0
     assert r["scores"]["E"] is None
+
+
+def test_flat_profile_has_no_discrepancies():
+    p = score_interests(ITEMS, answers({t: 4 for t in TYPES}))
+    cards = [{"card": "E1", "type": "E", "liked": True}, {"card": "E2", "type": "E", "liked": True}]
+    assert p.level == "flat" and discrepancies(p, cards) == []
