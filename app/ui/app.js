@@ -91,14 +91,16 @@ async function showHome(message) {
     h("td", {}, s.student.name), h("td", {}, s.student.grade), h("td", {}, s.student.lang),
     h("td", {}, s.with_headband ? "с ободком" : "без ободка"),
     h("td", {}, STATUS_TEXT[s.status] || s.status),
-    h("td", { class: "muted" }, (s.started_at || "").replace("T", " ").slice(0, 16))));
+    h("td", { class: "muted" }, (s.started_at || "").replace("T", " ").slice(0, 16)),
+    h("td", {}, s.status === "finished"
+      ? h("button", { class: "ghost", onclick: () => api.open_report(s.id, "parent") }, "Отчёт") : "")));
   mount(h("div", { class: "page" },
     h("div", { class: "row spread" }, h("h1", {}, "Сессии"),
       h("button", { class: "primary big", onclick: () => showNewStudent() }, "Новый ученик")),
     message ? h("div", { class: "card" }, message) : null,
     h("div", { class: "card" },
       sessions.length
-        ? h("table", {}, h("tr", {}, ...["Ученик", "Класс", "Язык", "Режим", "Статус", "Начало"]
+        ? h("table", {}, h("tr", {}, ...["Ученик", "Класс", "Язык", "Режим", "Статус", "Начало", ""]
             .map((x) => h("th", {}, x))), ...rows)
         : h("p", { class: "muted" }, "Сессий пока нет."))));
 }
@@ -224,31 +226,22 @@ const STYLE_NAMES = { E: "Общительность", A: "Доброжелат�
 const FLAG_TEXT = { too_fast: "отвечал(а) слишком быстро", straightlining: "много одинаковых ответов подряд",
                     inconsistent: "опросник и карточки сильно расходятся", guessing: "задачи похоже решались наугад" };
 
-// Итог для разговора менеджера с учеником. Оформленные саммари и PDF — этап 3.
+// Итог для разговора менеджера с учеником: саммари из 5 пунктов и отчёты.
 function resultBlock(summary) {
   const r = summary.result;
-  if (!r) return h("p", { class: "error" }, `Итог не посчитан: ${summary.result_error || "нет данных"}`);
-  const top = r.recommendation.top.map((id) => r.recommendation.clusters.find((c) => c.cluster === id));
-  const ws = r.work_style;
+  if (!r || !summary.report) return h("p", { class: "error" }, `Итог не посчитан: ${summary.result_error || "нет данных"}`);
+  const items = summary.report.summary.map((item, i) => h("div", { class: "summary-item" },
+    h("h3", {}, `${i + 1}. ${item.title}`),
+    item.steps ? h("ul", {}, ...item.steps.map((x) => h("li", {}, x))) : h("p", {}, item.text)));
+  const clusters = summary.report.clusters.map((c, i) =>
+    h("p", {}, h("b", {}, `${i + 1}. ${c.title}`), " — ", c.professions.join(", ") || "—"));
   return h("div", { class: "stack" },
-    h("h3", {}, `Интересы ${LEVEL_TEXT[r.interests.level]}`),
-    h("p", {}, r.interests.top.map((k) => `${TYPE_NAMES[k]} (${Math.round(r.interests.scores[k])})`).join(" · ")),
-    r.interests.level === "flat"
-      ? h("p", { class: "muted" }, "Ярких предпочтений пока нет: лучше предложить пробы в разных направлениях, чем выбирать одно.")
-      : null,
-    h("h3", {}, "Близкие направления"),
-    ...(top.length ? top.map((c, i) => h("p", {}, h("b", {}, `${i + 1}. ${c.title.ru}`), " — ",
-      c.professions.map((p) => p.title.ru).join(", ") || "профессий с заметным сходством нет"))
-      : [h("p", { class: "muted" }, "Не определены: профиль интересов почти ровный, сравнивать с профессиями не с чем.")]),
-    h("h3", {}, "Задачи на воображение"),
-    h("p", {}, `${r.spatial.correct} из ${r.spatial.total} — ${SPATIAL_TEXT[r.spatial.level] || "нет данных"}`),
-    ws ? h("h3", {}, "Стиль работы") : null,
-    ws ? h("p", {}, [...Object.entries(STYLE_NAMES).map(([k, n]) => `${n} ${Math.round(ws.scores[k])}`),
-                     `Эмоциональная устойчивость ${Math.round(ws.stability)}`].join(" · ")) : null,
-    r.discrepancies.length ? h("p", {}, "Расхождения с карточками: " + r.discrepancies.map((d) =>
-      `${TYPE_NAMES[d.type]} — ${d.questionnaire === "high" ? "в опроснике высоко, карточки «не очень»" : "в опроснике низко, карточки «интересно»"}`).join("; ")) : null,
-    r.flags.length ? h("p", { class: "error" }, "Осторожно с выводами: " + r.flags.map((f) => FLAG_TEXT[f] || f).join(", ")) : null,
-    h("p", { class: "muted" }, "Шкалы 0–100 — относительно самого ученика, это не оценка и не сравнение с другими."));
+    h("div", { class: "row" },
+      h("button", { class: "primary", onclick: () => api.open_report(summary.id, "parent") }, "PDF для родителя"),
+      h("button", { onclick: () => api.open_report(summary.id, "manager") }, "Технический отчёт"),
+      h("button", { class: "ghost", onclick: () => api.show_folder(summary.id) }, "Папка сессии")),
+    ...items,
+    clusters.length ? h("h3", {}, "Направления и профессии") : null, ...clusters);
 }
 
 // ── экраны ученика ──────────────────────────────────────────────────────

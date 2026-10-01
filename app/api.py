@@ -14,6 +14,7 @@ import random
 
 from app import __version__, content
 from app.battery.plan import plan_for
+from app.report import MANAGER_PDF, PARENT_PDF, make_reports
 from app.session.result import build_result
 from app.device.link import DeviceLink
 from app.session.session import Session, SessionStore, Student
@@ -23,7 +24,8 @@ log = logging.getLogger(__name__)
 
 class Api:
     def __init__(self, link: DeviceLink, store: SessionStore, manager: str = "",
-                 dev_controls: dict | None = None, fast: bool = False) -> None:
+                 dev_controls: dict | None = None, fast: bool = False,
+                 on_finished=None) -> None:
         self._link = link
         self._store = store
         self._manager = manager
@@ -32,6 +34,7 @@ class Api:
         # только для разработки: например, «закрыть глаза» у имитатора
         self._dev = dev_controls or {}
         self._fast = fast
+        self._on_finished = on_finished  # например, поставить визит в очередь облака
 
     def app_info(self) -> dict:
         return {"version": __version__, "manager": self._manager,
@@ -113,10 +116,42 @@ class Api:
                    "fs": meta.get("fs"), "result": None}
         try:
             summary["result"] = build_result(session.folder)
+            model = make_reports(session.folder, summary["result"])
+            summary["report"] = {"summary": model["summary"], "clusters": model["clusters"]}
         except Exception as error:  # итог пересчитывается из сырых файлов позже
             log.exception("расчёт итога %s", meta["id"])
             summary["result_error"] = str(error)
+        if self._on_finished is not None:
+            self._on_finished(session.folder)
         return summary
+
+    def _folder(self, session_id: str):
+        folder = self._store.root / str(session_id)
+        if not folder.is_dir() or folder.parent != self._store.root:
+            return None
+        return folder
+
+    def open_report(self, session_id: str, kind: str = "parent") -> dict:
+        """Открыть PDF системной программой. Нет отчёта — пересобрать из файлов сессии."""
+        folder = self._folder(session_id)
+        if folder is None:
+            return {"error": "нет такой сессии"}
+        path = folder / (PARENT_PDF if kind == "parent" else MANAGER_PDF)
+        if not path.exists():
+            try:
+                build_result(folder)
+                make_reports(folder)
+            except Exception as error:
+                return {"error": f"отчёт не собран: {error}"}
+        _open_path(path)
+        return {"ok": True}
+
+    def show_folder(self, session_id: str) -> dict:
+        folder = self._folder(session_id)
+        if folder is None:
+            return {"error": "нет такой сессии"}
+        _open_path(folder)
+        return {"ok": True}
 
     def session_abort(self, reason: str = "") -> dict:
         session = self._session
@@ -134,3 +169,15 @@ class Api:
             return {"error": f"нет действия {name}"}
         action(*args)
         return {"ok": True}
+
+
+def _open_path(path) -> None:
+    import os
+    import subprocess
+    import sys
+    if sys.platform == "win32":
+        os.startfile(str(path))  # noqa: S606 — путь из папки сессии
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", str(path)])
+    else:
+        subprocess.Popen(["xdg-open", str(path)])

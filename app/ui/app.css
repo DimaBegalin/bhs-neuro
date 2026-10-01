@@ -71,3 +71,6 @@ body.stage .topbar { display: none; }
 .card-show img { width: min(520px, 60vw); height: auto; border-radius: var(--radius); }
 .spatial img { max-width: min(900px, 90vw); max-height: 55vh; border-radius: var(--radius-sm); }
 .subjects { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 900px; width: 100%; }
+.summary-item h3 { margin-top: 8px; }
+.summary-item p, .summary-item li { line-height: 1.5; }
+td button.ghost { padding: 6px 12px; font-size: 13px; }
