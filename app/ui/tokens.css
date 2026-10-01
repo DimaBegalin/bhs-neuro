@@ -1,0 +1,25 @@
+/* Токены оформления. Когда фирменная дизайн-система будет доступна,
+   меняются только значения здесь. */
+@font-face { font-family: "Halvar"; src: url("fonts/HalvarBreit-Rg.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Halvar"; src: url("fonts/HalvarBreit-Md.woff2") format("woff2"); font-weight: 500; }
+@font-face { font-family: "Halvar"; src: url("fonts/HalvarBreit-Bd.woff2") format("woff2"); font-weight: 700; }
+
+:root {
+  --bg: #08090b;
+  --surface: #131417;
+  --surface-2: #191a1e;
+  --line: #26272c;
+  --text: #f2f3f5;
+  --muted: #8b8f98;
+  --accent: #c77df0;
+  --good: #7fe06a;
+  --warn: #f0c35a;
+  --bad: #f0666b;
+  --radius: 20px;
+  --radius-sm: 12px;
+  --font-display: "Halvar", "Segoe UI", -apple-system, sans-serif;
+  --font-body: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  /* фон экранов ученика: одинаковая яркость для всех модулей, иначе ЭЭГ
+     реагирует на смену яркости, а не на задание */
+  --stage: #101114;
+}

@@ -7,4 +7,6 @@ uvicorn==0.34.0
 websockets==14.1
 pyneurosdk2==1.0.15
 reportlab==4.2.5
+# окно версии 2.0 (WebView2 на Windows, WebKit на Mac)
+pywebview==6.2.1
 pyinstaller>=6.11,<7
