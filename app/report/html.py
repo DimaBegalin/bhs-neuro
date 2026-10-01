@@ -51,5 +51,12 @@ def render_parent_html(model: dict) -> str:
     else:
         parts.append(f"<p class='muted'>{escape(t['neuro_none'])}</p>")
     parts.append(f"<h2>{escape(t['how_title'])}</h2><ul>" + "".join(f"<li>{escape(x)}</li>" for x in t["how_items"]) + "</ul>")
-    parts.append(f"<p class='small'>{escape(t['methods'])}</p><p class='small'>{escape(t['onet'])}</p></body></html>")
+    comment = model.get("comment")
+    if comment:
+        sign = " · ".join(x for x in (comment.get("author"), (comment.get("updated_at") or "")[:10]) if x)
+        body = "<br>".join(escape(line) for line in comment["text"].splitlines())
+        parts.append(f"<h2>{escape(t['comment_title'])}</h2><p>{body}</p>"
+                     + (f"<p class='muted'>{escape(sign)}</p>" if sign else ""))
+    parts.append(f"<p class='small'>{escape(t['methods'])}</p><p class='small'>{escape(t['onet'])}</p>")
+    parts.append("</body></html>")
     return "".join(parts)

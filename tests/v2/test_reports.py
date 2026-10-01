@@ -86,3 +86,29 @@ def test_reports_are_written(tmp_path):
         assert data.startswith(b"%PDF") and len(data) > 5000
     html = (tmp_path / PARENT_HTML).read_text(encoding="utf-8")
     assert "Тест Ученик" in html and "O*NET" in html
+
+
+def test_comment_goes_to_the_end_of_parent_report(tmp_path):
+    from app.report import COMMENT, load_comment, save_comment
+    atomic_write_json(tmp_path / "meta.json", META)
+    atomic_write_json(tmp_path / "result.json", _result())
+    save_comment(tmp_path, "Обсудили робототехнику.\nПопробовать кружок до декабря.", "Айжан")
+    make_reports(tmp_path)
+    html = (tmp_path / PARENT_HTML).read_text(encoding="utf-8")
+    assert "Комментарий профориентолога" in html and "Попробовать кружок до декабря." in html
+    assert "Обсудили робототехнику.<br>Попробовать" in html and "Айжан" in html
+    # после «Как читать», но перед мелким текстом про методики
+    assert html.index("Как читать") < html.index("Комментарий профориентолога") < html.index("Методики")
+    assert (tmp_path / PARENT_PDF).read_bytes().startswith(b"%PDF")
+    save_comment(tmp_path, "   ")
+    assert load_comment(tmp_path) is None and not (tmp_path / COMMENT).exists()
+
+
+def test_comment_is_escaped_in_html(tmp_path):
+    from app.report import save_comment
+    atomic_write_json(tmp_path / "meta.json", META)
+    atomic_write_json(tmp_path / "result.json", _result())
+    save_comment(tmp_path, "<script>alert(1)</script> & ok")
+    make_reports(tmp_path)
+    html = (tmp_path / PARENT_HTML).read_text(encoding="utf-8")
+    assert "<script>" not in html and "&lt;script&gt;" in html

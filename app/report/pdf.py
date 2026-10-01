@@ -95,10 +95,25 @@ def _summary(model: dict, s: dict) -> list:
     return out
 
 
+def _comment(model: dict, s: dict) -> list:
+    """Комментарий профориентолога: тот же стиль раздела, переносы строк сохраняются."""
+    comment = model.get("comment")
+    if not comment:
+        return []
+    body = "<br/>".join(escape(line) for line in comment["text"].splitlines())
+    sign = " · ".join(x for x in (comment.get("author"), (comment.get("updated_at") or "")[:10]) if x)
+    out = [P(model["t"]["comment_title"], s["h2"]), Paragraph(body, s["base"])]
+    if sign:
+        out.append(P(sign, s["muted"]))
+    return [KeepTogether(out)]
+
+
 def _footer_blocks(model: dict, s: dict) -> list:
+    """«Как читать», затем комментарий профориентолога, внизу мелким — методики и атрибуция."""
     t = model["t"]
     out = [P(t["how_title"], s["h2"])]
     out += [P(f"• {item}", s["base"]) for item in t["how_items"]]
+    out += _comment(model, s)
     out += [Spacer(1, 4 * mm), P(t["methods"], s["small"]), Spacer(1, 2 * mm), P(t["onet"], s["small"])]
     return out
 
@@ -199,6 +214,7 @@ def render_manager(model: dict, path: Path) -> Path:
                                 [[c["card"], c["type"], {True: "интересно", False: "не очень"}.get(liked.get(c["card"]), "—"),
                                   "—" if c["alpha_change_pct"] is None else f"{c['alpha_change_pct']:.0f}",
                                   c.get("attention_rank", "—"), c["clean_epochs"]] for c in cards], s))
+    story += _comment(model, s)
     story += [Spacer(1, 4 * mm), P(model["t"]["methods"], s["small"]), P(model["t"]["onet"], s["small"])]
     _build(path, story)
     return path

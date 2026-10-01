@@ -14,7 +14,9 @@ import random
 
 from app import __version__, content
 from app.battery.plan import plan_for
-from app.report import MANAGER_PDF, PARENT_PDF, make_reports
+from app.report import MANAGER_PDF, PARENT_PDF, load_comment, make_reports, save_comment
+from app.report.model import build_model
+from app.storage import read_json
 from app.session.result import build_result
 from app.device.link import DeviceLink
 from app.session.session import Session, SessionStore, Student
@@ -150,6 +152,43 @@ class Api:
                 return {"error": f"отчёт не собран: {error}"}
         _open_path(path)
         return {"ok": True}
+
+    def session_view(self, session_id: str) -> dict:
+        """Итог прошлой сессии для экрана: саммари, направления, комментарий."""
+        folder = self._folder(session_id)
+        if folder is None:
+            return {"error": "нет такой сессии"}
+        meta = read_json(folder / "meta.json", {})
+        result = read_json(folder / "result.json")
+        try:
+            if result is None:
+                result = build_result(folder)
+                make_reports(folder, result)
+            model = build_model(result, meta)
+        except Exception as error:
+            return {"id": session_id, "meta": meta, "result": None, "result_error": str(error)}
+        return {"id": session_id, "meta": meta, "status": meta.get("status"), "result": result,
+                "report": {"summary": model["summary"], "clusters": model["clusters"]},
+                "comment": load_comment(folder)}
+
+    def session_comment(self, session_id: str, text: str) -> dict:
+        """Сохранить комментарий профориентолога и пересобрать PDF для родителя."""
+        folder = self._folder(session_id)
+        if folder is None:
+            return {"error": "нет такой сессии"}
+        author = self._manager
+        if self._auth is not None and self._auth.state().get("logged_in"):
+            author = self._auth.state().get("name") or author
+        try:
+            comment = save_comment(folder, text, author)
+            make_reports(folder)
+        except Exception as error:
+            log.exception("комментарий %s", session_id)
+            return {"error": f"PDF не собран: {error}"}
+        if self._on_finished is not None:  # обновлённый отчёт уходит и в облако
+            self._on_finished(folder)
+        _open_path(folder / PARENT_PDF)
+        return {"ok": True, "comment": comment}
 
     def show_folder(self, session_id: str) -> dict:
         folder = self._folder(session_id)

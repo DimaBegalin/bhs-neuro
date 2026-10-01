@@ -15,6 +15,8 @@ sys.path.insert(0, str(ROOT))
 
 import webview  # noqa: E402
 
+import app.api as api_module  # noqa: E402
+
 from app.api import Api  # noqa: E402
 from app.device.link import DeviceLink  # noqa: E402
 from app.device.sim import SimDevice  # noqa: E402
@@ -22,6 +24,8 @@ from app.main import UI_INDEX  # noqa: E402
 from app.session.session import SessionStore  # noqa: E402
 
 out = Path(sys.argv[1])
+opened: list = []
+api_module._open_path = lambda path: opened.append(str(path))  # не открывать PDF во время прогона
 out.mkdir(parents=True, exist_ok=True)
 sim = SimDevice(speed=1.0)
 api = Api(DeviceLink(lambda: sim), SessionStore(out / "sessions"), manager="e2e",
@@ -120,6 +124,12 @@ def scenario() -> None:
         click("Для менеджера: открыть итог")
         time.sleep(2)
         shot("8-summary")
+        js("document.querySelector('textarea').value = 'Обсудили с родителями: пробуем кружок робототехники.'")
+        click("Сформировать PDF для родителя")
+        time.sleep(2)
+        js("document.querySelector('textarea').scrollIntoView()")
+        shot("9-comment")
+        log.append(f"открыто: {opened}")
         log.append("OK")
     except Exception as error:
         log.append(f"FAIL {error}")

@@ -75,3 +75,7 @@ body.stage .topbar { display: none; }
 .summary-item p, .summary-item li { line-height: 1.5; }
 td button.ghost { padding: 6px 12px; font-size: 13px; }
 button.pill { font: 13px var(--font-body); cursor: pointer; }
+textarea { font: 16px var(--font-body); color: var(--text); background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); padding: 12px 14px; outline: none; resize: vertical; width: 100%; user-select: text; }
+textarea:focus { border-color: var(--accent); }
+.comment { margin-top: 16px; }

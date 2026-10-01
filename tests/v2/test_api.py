@@ -100,3 +100,24 @@ def test_replay_loops_and_simulates_lost_connection(tmp_path):
     assert wait_until(lambda: device.connected, 2.0)
     device.close()
     assert got
+
+
+def test_comment_rebuilds_parent_pdf_and_requeues_cloud(tmp_path, monkeypatch):
+    import app.api as api_mod
+    opened, queued = [], []
+    monkeypatch.setattr(api_mod, "_open_path", lambda p: opened.append(p))
+    sim = SimDevice(speed=20.0)
+    api = Api(DeviceLink(lambda: sim), SessionStore(tmp_path / "sessions"), manager="Айжан",
+              on_finished=lambda folder: queued.append(folder.name))
+    started = api.session_start({**STUDENT, "with_headband": False})
+    for item in api.session_content()["interests"]["items"]:
+        api.session_mark("interest_answer", {"item": item["id"], "value": 5 if "-R" in item["id"] else 2, "rt_ms": 2000})
+    api.session_finish()
+    view = api.session_view(started["id"])
+    assert view["comment"] is None and len(view["report"]["summary"]) == 5
+    res = api.session_comment(started["id"], "Обсудили, пробуем кружок")
+    assert res["ok"] and res["comment"]["author"] == "Айжан"
+    assert opened[-1].name == "отчёт-родителю.pdf"
+    assert queued == [started["id"], started["id"]]  # после теста и после комментария
+    assert api.session_view(started["id"])["comment"]["text"] == "Обсудили, пробуем кружок"
+    assert "error" in api.session_comment("../../etc", "x")

@@ -125,21 +125,27 @@ function showLogin() {
 
 async function showHome(message) {
   managerMode();
-  const [sessions, update, sync] = await Promise.all([api.sessions_list(), api.update_check(), api.sync_status()]);
+  const [sessions, sync] = await Promise.all([api.sessions_list(), api.sync_status()]);
+  // проверка версии ходит в сеть: без интернета ждать её нельзя, плашка появится сама
+  const updateSlot = h("div", {});
+  api.update_check().then((update) => {
+    if (!update) return;
+    updateSlot.replaceChildren(h("div", { class: "card row spread" },
+      h("span", {}, `Доступна версия ${update.version}. ${update.notes || ""}`),
+      update.url ? h("button", { class: "primary", onclick: () => api.open_url(update.url) }, "Скачать") : null));
+  });
   const rows = sessions.slice(0, 30).map((s) => h("tr", {},
     h("td", {}, s.student.name), h("td", {}, s.student.grade), h("td", {}, s.student.lang),
     h("td", {}, s.with_headband ? "с ободком" : "без ободка"),
     h("td", {}, STATUS_TEXT[s.status] || s.status),
     h("td", { class: "muted" }, (s.started_at || "").replace("T", " ").slice(0, 16)),
     h("td", {}, s.status === "finished"
-      ? h("button", { class: "ghost", onclick: () => api.open_report(s.id, "parent") }, "Отчёт") : "")));
+      ? h("button", { class: "ghost", onclick: () => showSessionView(s.id) }, "Открыть") : "")));
   mount(h("div", { class: "page" },
     h("div", { class: "row spread" }, h("h1", {}, "Сессии"),
       h("button", { class: "primary big", onclick: () => showNewStudent() }, "Новый ученик")),
     message ? h("div", { class: "card" }, message) : null,
-    update ? h("div", { class: "card row spread" },
-      h("span", {}, `Доступна версия ${update.version}. ${update.notes || ""}`),
-      update.url ? h("button", { class: "primary", onclick: () => api.open_url(update.url) }, "Скачать") : null) : null,
+    updateSlot,
     sync.pending ? h("div", { class: "card row spread" },
       h("span", {}, `Не отправлено в облако: ${sync.pending}. ${sync.last_error || ""}`),
       h("button", { onclick: async () => { await api.sync_now(); refreshCloud(); showHome(); } }, "Отправить сейчас")) : null,
@@ -271,7 +277,7 @@ const STYLE_NAMES = { E: "Общительность", A: "Доброжелат�
 const FLAG_TEXT = { too_fast: "отвечал(а) слишком быстро", straightlining: "много одинаковых ответов подряд",
                     inconsistent: "опросник и карточки сильно расходятся", guessing: "задачи похоже решались наугад" };
 
-// Итог для разговора менеджера с учеником: саммари из 5 пунктов и отчёты.
+// Итог для разговора с учеником: саммари, направления, комментарий профориентолога.
 function resultBlock(summary) {
   const r = summary.result;
   if (!r || !summary.report) return h("p", { class: "error" }, `Итог не посчитан: ${summary.result_error || "нет данных"}`);
@@ -282,11 +288,46 @@ function resultBlock(summary) {
     h("p", {}, h("b", {}, `${i + 1}. ${c.title}`), " — ", c.professions.join(", ") || "—"));
   return h("div", { class: "stack" },
     h("div", { class: "row" },
-      h("button", { class: "primary", onclick: () => api.open_report(summary.id, "parent") }, "PDF для родителя"),
-      h("button", { onclick: () => api.open_report(summary.id, "manager") }, "Технический отчёт"),
+      h("button", { onclick: () => api.open_report(summary.id, "manager") }, "PDF для профориентолога"),
       h("button", { class: "ghost", onclick: () => api.show_folder(summary.id) }, "Папка сессии")),
     ...items,
-    clusters.length ? h("h3", {}, "Направления и профессии") : null, ...clusters);
+    clusters.length ? h("h3", {}, "Направления и профессии") : null, ...clusters,
+    commentBlock(summary));
+}
+
+function commentBlock(summary) {
+  const status = h("div", { class: "muted" },
+    summary.comment ? `Комментарий сохранён ${summary.comment.updated_at.replace("T", " ").slice(0, 16)}` :
+      "Комментарий попадёт в конец PDF для родителя.");
+  const text = h("textarea", { rows: "6", maxlength: "3000",
+                               placeholder: "Что вы обсудили с учеником и родителями, на что обратить внимание, что попробовать" });
+  text.value = (summary.comment && summary.comment.text) || "";
+  const build = h("button", { class: "primary big", onclick: async () => {
+    build.disabled = true;
+    const res = await api.session_comment(summary.id, text.value);
+    build.disabled = false;
+    if (res.error) { status.textContent = res.error; status.className = "error"; return; }
+    summary.comment = res.comment;
+    status.className = "muted";
+    status.textContent = res.comment ? "PDF для родителя сформирован с комментарием и открыт." :
+      "PDF для родителя сформирован без комментария и открыт.";
+  } }, "Сформировать PDF для родителя");
+  return h("div", { class: "card stack comment" },
+    h("h2", {}, "Комментарий профориентолога"), text, status,
+    h("div", { class: "row" }, build,
+      h("button", { class: "ghost", onclick: () => api.open_report(summary.id, "parent") }, "Открыть PDF для родителя")));
+}
+
+async function showSessionView(sessionId) {
+  managerMode();
+  const view = await api.session_view(sessionId);
+  if (view.error) return showHome(view.error);
+  const st = view.meta.student || {};
+  mount(h("div", { class: "page" },
+    h("div", { class: "row spread" }, h("h1", {}, st.name || sessionId),
+      h("button", { class: "ghost", onclick: () => showHome() }, "К списку сессий")),
+    h("p", { class: "muted" }, `${st.grade} класс · ${st.lang} · ${(view.meta.started_at || "").replace("T", " ").slice(0, 16)}`),
+    h("div", { class: "card stack" }, resultBlock(view))));
 }
 
 // ── экраны ученика ──────────────────────────────────────────────────────
