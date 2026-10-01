@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 class Api:
     def __init__(self, link: DeviceLink, store: SessionStore, manager: str = "",
                  dev_controls: dict | None = None, fast: bool = False,
-                 on_finished=None) -> None:
+                 on_finished=None, auth=None, syncer=None) -> None:
         self._link = link
         self._store = store
         self._manager = manager
@@ -35,6 +35,8 @@ class Api:
         self._dev = dev_controls or {}
         self._fast = fast
         self._on_finished = on_finished  # например, поставить визит в очередь облака
+        self._auth = auth
+        self._syncer = syncer
 
     def app_info(self) -> dict:
         return {"version": __version__, "manager": self._manager,
@@ -69,8 +71,11 @@ class Api:
             if with_headband and not self._link.streaming:
                 return {"error": "ободок не передаёт сигнал: подключите его или выберите «без ободка»"}
             modules = plan_for(with_headband, self._fast)
+            manager = self._manager
+            if self._auth is not None and self._auth.state().get("logged_in"):
+                manager = self._auth.state().get("name") or manager
             self._session = self._store.start(
-                student, self._manager, self._link if with_headband else None,
+                student, manager, self._link if with_headband else None,
                 [m.id for m in modules], __version__)
         return {"id": self._session.id,
                 "with_headband": self._session.meta["with_headband"],
@@ -162,6 +167,49 @@ class Api:
 
     def sessions_list(self) -> list[dict]:
         return self._store.list()
+
+    # менеджер и облако ------------------------------------------------------
+
+    def manager_state(self) -> dict:
+        if self._auth is None:
+            return {"logged_in": False, "cloud": False}
+        return {**self._auth.state(), "cloud": True}
+
+    def manager_login(self, email: str, password: str) -> dict:
+        if self._auth is None:
+            return {"error": "облако выключено"}
+        from app.cloud.auth import AuthError
+        try:
+            self._auth.login(str(email), str(password))
+        except AuthError as error:
+            return {"error": str(error)}
+        if self._syncer is not None:
+            threading.Thread(target=self._syncer.flush, daemon=True).start()
+        return self.manager_state()
+
+    def manager_logout(self) -> dict:
+        if self._auth is not None:
+            self._auth.logout()
+        return self.manager_state()
+
+    def sync_status(self) -> dict:
+        return self._syncer.status() if self._syncer is not None else {"pending": 0, "configured": False}
+
+    def sync_now(self) -> dict:
+        if self._syncer is None:
+            return {"error": "облако выключено"}
+        return {**self._syncer.flush(), **self._syncer.status()}
+
+    def update_check(self) -> dict | None:
+        from app.cloud.updates import check
+        return check()
+
+    def open_url(self, url: str) -> dict:
+        if not str(url).startswith("https://"):
+            return {"error": "только https-ссылки"}
+        import webbrowser
+        webbrowser.open(url)
+        return {"ok": True}
 
     def dev(self, name: str, *args) -> dict:
         action = self._dev.get(name)

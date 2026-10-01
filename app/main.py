@@ -61,7 +61,7 @@ def device_setup(kind: str, replay: Path | None, speed: float):
     return (lambda: ReplayDevice(path, speed=speed)), {}
 
 
-def selftest(out: Path, window: bool) -> int:
+def selftest(out: Path, window: bool, sessions_root: Path | None = None) -> int:
     """Проверка собранного приложения без человека: содержимое, расчёт, окно.
 
     Прогоняет сессию с имитатором и ускоренными модулями через тот же Api,
@@ -79,7 +79,8 @@ def selftest(out: Path, window: bool) -> int:
     try:
         sim = SimDevice(speed=20.0)
         link = DeviceLink(lambda: sim)
-        api = Api(link, Store(Path(tempfile.mkdtemp()) / "sessions"), manager="selftest", fast=True)
+        root = sessions_root or Path(tempfile.mkdtemp()) / "sessions"
+        api = Api(link, Store(root), manager="selftest", fast=True)
         api.device_connect()
         for _ in range(100):
             if api.device_state()["state"] == "streaming":
@@ -103,6 +104,11 @@ def selftest(out: Path, window: bool) -> int:
         report.update(plan=[m["id"] for m in started["plan"]],
                       top=(result.get("recommendation") or {}).get("top"),
                       result_error=summary.get("result_error"))
+        from app.settings import cloud_configured
+        report["cloud_configured"] = cloud_configured()
+        from app.report import MANAGER_PDF, PARENT_PDF
+        folder = Path(api._store.root) / started["id"]
+        report["reports"] = all((folder / name).exists() for name in (PARENT_PDF, MANAGER_PDF))
         try:
             import neurosdk  # noqa: F401  SDK ободка должен быть внутри сборки
             report["neurosdk"] = True
@@ -127,7 +133,7 @@ def selftest(out: Path, window: bool) -> int:
             win = webview.create_window("selftest", url=str(UI_INDEX), js_api=api, width=900, height=600)
             webview.start(probe, win, http_server=True)
             report["window"] = seen
-        report["ok"] = bool(report.get("top")) and not report.get("result_error") and (
+        report["ok"] = bool(report.get("top")) and not report.get("result_error") and report["reports"] and (
             not window or report.get("window", {}).get("bridge") is True)
     except Exception as error:
         import traceback
@@ -176,7 +182,16 @@ def main(argv: list[str] | None = None) -> int:
 
     factory, dev_controls = device_setup(args.device, args.replay, args.speed)
     link = DeviceLink(factory)
-    api = Api(link, store, manager=args.manager, dev_controls=dev_controls, fast=args.fast)
+    from app.cloud.auth import ManagerAuth
+    from app.cloud.sync import Syncer
+    auth = ManagerAuth()
+    syncer = Syncer(auth, store.root)
+    for meta in store.list():  # досылаем сессии, не ушедшие в прошлых запусках
+        if meta.get("status") == "finished" and not meta.get("synced_at"):
+            syncer.enqueue(store.root / meta["id"])
+    syncer.start()
+    api = Api(link, store, manager=args.manager, dev_controls=dev_controls, fast=args.fast,
+              on_finished=syncer.enqueue, auth=auth, syncer=syncer)
 
     import webview
     webview.create_window("Профориентация BHS", url=str(UI_INDEX), js_api=api,

@@ -11,6 +11,7 @@ jobs:
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      SITE_URL: ${{ vars.SITE_URL }}
       TEST_URL: ${{ vars.TEST_URL }}
     steps:
       - uses: actions/checkout@v4
@@ -67,9 +68,21 @@ jobs:
           Get-Content $report -Encoding UTF8
           $json = Get-Content $report -Raw -Encoding UTF8 | ConvertFrom-Json
           if (-not $json.ok) { throw "selftest failed" }
+      - name: Build installer (Inno Setup)
+        shell: pwsh
+        run: |
+          if (-not (Get-Command iscc -ErrorAction SilentlyContinue)) {
+            $default = "${env:ProgramFiles(x86)}\Inno Setup 6"
+            if (-not (Test-Path "$default\ISCC.exe")) { choco install innosetup -y --no-progress | Out-Null }
+            $env:PATH = "$default;$env:PATH"
+          }
+          $version = (python -c "import app; print(app.__version__)").Trim()
+          iscc "/DAppVersion=$version" windows\BHS-Profor.iss
+          Get-ChildItem dist\BHS-Profor-Setup-*.exe
       - name: SHA-256
         shell: pwsh
         run: |
+          Get-ChildItem dist\BHS-Profor-Setup-*.exe | Get-FileHash -Algorithm SHA256 | Format-List | Out-File dist\BHS-Profor-Setup.sha256.txt
           Get-FileHash dist\BHS-Profor.exe -Algorithm SHA256 | Format-List | Out-File dist\BHS-Profor.sha256.txt
           Get-FileHash dist\BHS-Neuro.exe -Algorithm SHA256 | Format-List | Out-File dist\BHS-Neuro.sha256.txt
           Get-FileHash dist\BHS-SDK-Check.exe -Algorithm SHA256 | Format-List | Out-File dist\BHS-SDK-Check.sha256.txt
@@ -85,6 +98,8 @@ jobs:
           path: |
             dist/BHS-Profor.exe
             dist/BHS-Profor.sha256.txt
+            dist/BHS-Profor-Setup-*.exe
+            dist/BHS-Profor-Setup.sha256.txt
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:

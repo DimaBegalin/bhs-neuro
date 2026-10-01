@@ -29,9 +29,9 @@ button.ghost { background: transparent; }
 button.big { padding: 18px 28px; font-size: 18px; }
 
 label, .field { display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: var(--muted); }
-input[type=text] { font: 18px var(--font-body); color: var(--text); background: var(--surface-2);
+input[type=text], input[type=password] { font: 18px var(--font-body); color: var(--text); background: var(--surface-2);
   border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px; outline: none; }
-input[type=text]:focus { border-color: var(--accent); }
+input[type=text]:focus, input[type=password]:focus { border-color: var(--accent); }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
 .seg button { border: 0; border-radius: 0; background: transparent; padding: 10px 18px; }
 .seg button[aria-pressed=true] { background: var(--accent); color: #111; }
@@ -74,3 +74,4 @@ body.stage .topbar { display: none; }
 .summary-item h3 { margin-top: 8px; }
 .summary-item p, .summary-item li { line-height: 1.5; }
 td button.ghost { padding: 6px 12px; font-size: 13px; }
+button.pill { font: 13px var(--font-body); cursor: pointer; }

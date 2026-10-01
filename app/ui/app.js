@@ -82,11 +82,50 @@ async function refreshPill() {
                        h("span", {}, STATE_TEXT[state.state] || state.state));
 }
 
+async function refreshCloud() {
+  const [m, sync] = await Promise.all([api.manager_state(), api.sync_status()]);
+  const mp = document.getElementById("manager-pill");
+  mp.textContent = m.logged_in ? `Менеджер: ${m.name}` : (m.expired ? "Вход истёк — войти" : "Войти");
+  mp.onclick = () => showLogin();
+  const sp = document.getElementById("sync-pill");
+  if (!sync.configured) { sp.style.display = "none"; return; }
+  sp.style.display = "";
+  sp.replaceChildren(h("span", { class: `dot ${sync.pending ? (sync.last_error ? "warn" : "") : "good"}` }),
+    h("span", {}, sync.pending ? `В облако ждут: ${sync.pending}` : "Облако: всё отправлено"));
+  sp.title = sync.last_error || "";
+}
+
+function showLogin() {
+  managerMode();
+  const error = h("div", { class: "error" });
+  const email = h("input", { type: "text", placeholder: "Почта", autocomplete: "username" });
+  const password = h("input", { type: "password", placeholder: "Пароль", autocomplete: "current-password" });
+  const submit = async () => {
+    error.textContent = "";
+    const result = await api.manager_login(email.value, password.value);
+    if (result.error) { error.textContent = result.error; return; }
+    refreshCloud();
+    showHome("Вход выполнен. Сессии будут уходить в облако, когда есть интернет.");
+  };
+  password.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+  api.manager_state().then((m) => mount(h("div", { class: "page" },
+    h("h1", {}, "Вход менеджера"),
+    m.logged_in ? h("div", { class: "card stack" },
+      h("p", {}, `Вы вошли как ${m.email}. Без интернета приложение работает ещё ${m.offline_days_left} дн.`),
+      h("button", { class: "ghost", onclick: async () => { await api.manager_logout(); refreshCloud(); showLogin(); } }, "Выйти"))
+    : h("div", { class: "card stack" },
+      h("p", { class: "muted" }, "Первый вход требует интернет. Потом приложение работает без сети до 30 дней. Без входа сессии сохраняются на ноутбуке и уйдут в облако после входа."),
+      field("Почта", email), field("Пароль", password), error,
+      h("div", { class: "row" },
+        h("button", { class: "ghost", onclick: () => showHome() }, "Продолжить без входа"),
+        h("button", { class: "primary big", onclick: submit }, "Войти"))))));
+}
+
 // ── экраны менеджера ────────────────────────────────────────────────────
 
 async function showHome(message) {
   managerMode();
-  const sessions = await api.sessions_list();
+  const [sessions, update, sync] = await Promise.all([api.sessions_list(), api.update_check(), api.sync_status()]);
   const rows = sessions.slice(0, 30).map((s) => h("tr", {},
     h("td", {}, s.student.name), h("td", {}, s.student.grade), h("td", {}, s.student.lang),
     h("td", {}, s.with_headband ? "с ободком" : "без ободка"),
@@ -98,6 +137,12 @@ async function showHome(message) {
     h("div", { class: "row spread" }, h("h1", {}, "Сессии"),
       h("button", { class: "primary big", onclick: () => showNewStudent() }, "Новый ученик")),
     message ? h("div", { class: "card" }, message) : null,
+    update ? h("div", { class: "card row spread" },
+      h("span", {}, `Доступна версия ${update.version}. ${update.notes || ""}`),
+      update.url ? h("button", { class: "primary", onclick: () => api.open_url(update.url) }, "Скачать") : null) : null,
+    sync.pending ? h("div", { class: "card row spread" },
+      h("span", {}, `Не отправлено в облако: ${sync.pending}. ${sync.last_error || ""}`),
+      h("button", { onclick: async () => { await api.sync_now(); refreshCloud(); showHome(); } }, "Отправить сейчас")) : null,
     h("div", { class: "card" },
       sessions.length
         ? h("table", {}, h("tr", {}, ...["Ученик", "Класс", "Язык", "Режим", "Статус", "Начало", ""]
@@ -450,6 +495,8 @@ window.addEventListener("pywebviewready", async () => {
   const info = await api.app_info();
   document.getElementById("version").textContent = `v${info.version}`;
   setInterval(refreshPill, 1000);
+  setInterval(refreshCloud, 5000);
   refreshPill();
+  refreshCloud();
   showHome();
 });

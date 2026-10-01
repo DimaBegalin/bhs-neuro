@@ -44,8 +44,20 @@ def _settings() -> dict[str, str]:
 
 
 def build_app() -> None:
-    """Приложение версии 2.0: одно окно (pywebview + WebView2), без консоли."""
+    """Приложение версии 2.0: одно окно (pywebview + WebView2), без консоли.
+
+    Настройки облака (адрес и публичный ключ Supabase) вшиваются в сборку
+    файлом bhs-defaults.env, как в версии 1. Без них приложение работает
+    полностью офлайн, а визиты копятся в очереди.
+    """
     separator = ";"
+    settings = {key: os.environ.get(key, "") for key in ("SUPABASE_URL", "SUPABASE_ANON_KEY", "SITE_URL")}
+    for key, value in _settings().items():
+        settings[key] = settings.get(key) or value
+    defaults = ROOT / "build" / "bhs-defaults.env"
+    defaults.parent.mkdir(parents=True, exist_ok=True)
+    defaults.write_text("".join(f"{k}={v}\n" for k, v in settings.items() if v), encoding="utf-8")
+    print("облако в сборке:", "настроено" if settings["SUPABASE_URL"] and settings["SUPABASE_ANON_KEY"] else "НЕ настроено")
     command = [
         sys.executable, "-m", "PyInstaller",
         "--noconfirm", "--clean", "--onefile", "--windowed",
@@ -56,6 +68,8 @@ def build_app() -> None:
         "--paths", str(ROOT),
         "--add-data", f"{ROOT / 'app' / 'ui'}{separator}app/ui",
         "--add-data", f"{ROOT / 'app' / 'content'}{separator}app/content",
+        "--add-data", f"{ROOT / 'app' / 'report' / 'fonts'}{separator}app/report/fonts",
+        "--add-data", f"{defaults}{separator}.",
         "--collect-all", "webview",
         "--collect-all", "clr_loader",
         "--collect-all", "pythonnet",

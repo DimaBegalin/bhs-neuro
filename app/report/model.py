@@ -43,17 +43,21 @@ def build_summary(result: dict, lang: str) -> list[dict]:
             clusters=", ".join(clusters[c]["title"][lang] for c in rec["top"]))
 
     # 2. Сильная сторона сейчас
-    strengths = []
+    strengths, growth = [], []
     spatial = result.get("spatial") or {}
-    if spatial.get("level"):
+    if spatial.get("level") in ("strong", "middle"):
         strengths.append(SPATIAL[spatial["level"]][lang])
+    elif spatial.get("level") == "zone":
+        growth.append(SPATIAL["zone"][lang])
     style = _style_scores(result.get("work_style"))
     if style:
         best = max(style, key=style.get)
         if style[best] >= STYLE_STRONG:
             strengths.append(tr(T, "style_strength", lang).format(
                 name=STYLE[best][lang].lower(), text=STYLE_STRENGTH[best][lang]))
-    strong = " ".join(strengths)
+    if not strengths:
+        strengths.append(tr(T, "no_strength", lang))
+    strong = " ".join(strengths + growth)
 
     # 3. Расхождение
     gaps = []
