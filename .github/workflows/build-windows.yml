@@ -44,13 +44,32 @@ jobs:
           } finally {
             Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
           }
+      - name: Build headband SDK check
+        run: python tools/build_windows.py --sdk-check
+      - name: Smoke test SDK check with simulator
+        shell: pwsh
+        run: |
+          dist\BHS-SDK-Check.exe --fake --phase 8 --no-wait --out "$env:RUNNER_TEMP"
+          # синтетический сигнал не обязан пройти все пункты: проверяем только, что отчёт записан
+          $global:LASTEXITCODE = 0
+          $folder = Get-ChildItem "$env:RUNNER_TEMP" -Directory -Filter "BHS-*" | Select-Object -First 1
+          if (-not $folder) { throw "SDK check did not write its report folder" }
+          if (-not (Test-Path (Join-Path $folder.FullName "отчёт.json"))) { throw "no report in SDK check folder" }
       - name: SHA-256
         shell: pwsh
-        run: Get-FileHash dist\BHS-Neuro.exe -Algorithm SHA256 | Format-List | Out-File dist\BHS-Neuro.sha256.txt
+        run: |
+          Get-FileHash dist\BHS-Neuro.exe -Algorithm SHA256 | Format-List | Out-File dist\BHS-Neuro.sha256.txt
+          Get-FileHash dist\BHS-SDK-Check.exe -Algorithm SHA256 | Format-List | Out-File dist\BHS-SDK-Check.sha256.txt
       - uses: actions/upload-artifact@v4
         with:
           name: BHS-Neuro-Windows-x64
           path: |
             dist/BHS-Neuro.exe
             dist/BHS-Neuro.sha256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BHS-SDK-Check-Windows-x64
+          path: |
+            dist/BHS-SDK-Check.exe
+            dist/BHS-SDK-Check.sha256.txt
           if-no-files-found: error

@@ -18,6 +18,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
 NAME = "BHS-Neuro"
+SDK_CHECK_NAME = "BHS-SDK-Check"
 ENV_KEYS = ("SUPABASE_URL", "SUPABASE_ANON_KEY", "TEST_URL")
 
 # GitHub Windows runner иногда оставляет stdout в CP1252, которая не умеет
@@ -39,6 +40,31 @@ def _settings() -> dict[str, str]:
                 if key.strip() in ENV_KEYS and not values[key.strip()]:
                     values[key.strip()] = value.strip()
     return values
+
+
+def build_sdk_check() -> None:
+    """Отдельный маленький EXE проверки ободка (этап 0 версии 2.0).
+
+    Настройки облака ему не нужны: он только читает ободок и пишет отчёт.
+    """
+    command = [
+        sys.executable, "-m", "PyInstaller",
+        "--noconfirm", "--clean", "--onefile", "--console",
+        "--name", SDK_CHECK_NAME,
+        "--distpath", str(DIST),
+        "--workpath", str(ROOT / "build" / "pyinstaller-sdk-check"),
+        "--specpath", str(ROOT / "build"),
+        "--paths", str(ROOT),
+        "--collect-all", "neurosdk",
+        "--hidden-import", "bridge.device",
+        "--hidden-import", "bridge.fake_device",
+        str(ROOT / "tools" / "sdk_check.py"),
+    ]
+    subprocess.run(command, cwd=ROOT, check=True)
+    target = DIST / f"{SDK_CHECK_NAME}.exe"
+    if not target.exists():
+        raise SystemExit("сборка не создала EXE проверки ободка")
+    print(f"Готово: {target} ({target.stat().st_size / 1024 / 1024:.1f} МБ)")
 
 
 def main() -> None:
@@ -103,4 +129,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    if "--sdk-check" in sys.argv[1:]:
+        build_sdk_check()
+    else:
+        main()
