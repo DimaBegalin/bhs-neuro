@@ -1,0 +1,114 @@
+{
+ "_source": "Ganis, G., & Kievit, R. (2015). A New Set of Three-Dimensional Shapes for Investigating Mental Rotation Processes: Validation Data and Stimulus Set. Journal of Open Psychology Data, 3(1), e3. doi:10.5334/jopd.ai. Стимулы: doi:10.6084/m9.figshare.1045385, CC BY 4.0. Отбор 12 пар и формат задачи — BHS.",
+ "_note": "Двухвариантная задача: шанс угадать 50%. Пороги уровней калибруются на пилоте; у взрослых точность на 100–150° около 87–90%.",
+ "instruction": {
+  "ru": "На каждой картинке две фигуры из кубиков. Правая — это левая, повёрнутая в пространстве, или её зеркальное отражение? Отвечай как можно точнее, на каждую задачу 15 секунд.",
+  "kk": "Әр суретте текшелерден құралған екі фигура бар. Оң жақтағысы — кеңістікте бұрылған сол жақтағы фигура ма, әлде оның айнадағы көрінісі ме? Мүмкіндігінше дәл жауап бер, әр тапсырмаға 15 секунд."
+ },
+ "time_limit_s": 15,
+ "options": [
+  {
+   "value": "same",
+   "label": {
+    "ru": "Та же, повёрнута",
+    "kk": "Сол фигура, бұрылған"
+   }
+  },
+  {
+   "value": "mirror",
+   "label": {
+    "ru": "Зеркальная",
+    "kk": "Айналық"
+   }
+  }
+ ],
+ "chance": 0.5,
+ "strong_share": 0.84,
+ "weak_share": 0.59,
+ "items": [
+  {
+   "id": "GK02",
+   "image": "spatial/GK02_100s.jpg",
+   "source_file": "2_100.jpg",
+   "angle": 100,
+   "answer": "same"
+  },
+  {
+   "id": "GK05",
+   "image": "spatial/GK05_150m.jpg",
+   "source_file": "5_150_R.jpg",
+   "angle": 150,
+   "answer": "mirror"
+  },
+  {
+   "id": "GK08",
+   "image": "spatial/GK08_100m.jpg",
+   "source_file": "8_100_R.jpg",
+   "angle": 100,
+   "answer": "mirror"
+  },
+  {
+   "id": "GK11",
+   "image": "spatial/GK11_150s.jpg",
+   "source_file": "11_150.jpg",
+   "angle": 150,
+   "answer": "same"
+  },
+  {
+   "id": "GK14",
+   "image": "spatial/GK14_100s.jpg",
+   "source_file": "14_100.jpg",
+   "angle": 100,
+   "answer": "same"
+  },
+  {
+   "id": "GK17",
+   "image": "spatial/GK17_150m.jpg",
+   "source_file": "17_150_R.jpg",
+   "angle": 150,
+   "answer": "mirror"
+  },
+  {
+   "id": "GK20",
+   "image": "spatial/GK20_100m.jpg",
+   "source_file": "20_100_R.jpg",
+   "angle": 100,
+   "answer": "mirror"
+  },
+  {
+   "id": "GK23",
+   "image": "spatial/GK23_150s.jpg",
+   "source_file": "23_150.jpg",
+   "angle": 150,
+   "answer": "same"
+  },
+  {
+   "id": "GK26",
+   "image": "spatial/GK26_100s.jpg",
+   "source_file": "26_100.jpg",
+   "angle": 100,
+   "answer": "same"
+  },
+  {
+   "id": "GK29",
+   "image": "spatial/GK29_150m.jpg",
+   "source_file": "29_150_R.jpg",
+   "angle": 150,
+   "answer": "mirror"
+  },
+  {
+   "id": "GK32",
+   "image": "spatial/GK32_100m.jpg",
+   "source_file": "32_100_R.jpg",
+   "angle": 100,
+   "answer": "mirror"
+  },
+  {
+   "id": "GK35",
+   "image": "spatial/GK35_150s.jpg",
+   "source_file": "35_150.jpg",
+   "angle": 150,
+   "answer": "same"
+  }
+ ]
+}

@@ -1,0 +1,225 @@
+{
+ "_source": "Mini-IPIP: Donnellan, Oswald, Baird & Lucas (2006), Psychological Assessment 18(2), 192–203. Пункты и ключи: https://ipip.ori.org/MiniIPIPKey.htm. IPIP — public domain, любое использование, включая коммерческое (https://ipip.ori.org/newPermission.htm). Перевод BHS; казахский — черновик для вычитки.",
+ "question": {
+  "ru": "Насколько это про тебя?",
+  "kk": "Бұл саған қаншалықты сәйкес келеді?"
+ },
+ "scale": {
+  "ru": [
+   "Совсем не про меня",
+   "Скорее не про меня",
+   "И да, и нет",
+   "Скорее про меня",
+   "Точно про меня"
+  ],
+  "kk": [
+   "Мүлдем мен туралы емес",
+   "Мен туралы емес сияқты",
+   "Иә да, жоқ та",
+   "Мен туралы сияқты",
+   "Дәл мен туралы"
+  ]
+ },
+ "items": [
+  {
+   "id": "MI01",
+   "scale": "E",
+   "keyed": "+",
+   "text_en": "Am the life of the party.",
+   "text": {
+    "ru": "Я — душа компании",
+    "kk": "Мен — компанияның жаны"
+   }
+  },
+  {
+   "id": "MI02",
+   "scale": "A",
+   "keyed": "+",
+   "text_en": "Sympathize with others' feelings.",
+   "text": {
+    "ru": "Я сочувствую чувствам других людей",
+    "kk": "Басқалардың сезіміне жаным ашиды"
+   }
+  },
+  {
+   "id": "MI03",
+   "scale": "C",
+   "keyed": "+",
+   "text_en": "Get chores done right away.",
+   "text": {
+    "ru": "Делаю дела сразу, не откладывая",
+    "kk": "Істерді кейінге қалдырмай, бірден орындаймын"
+   }
+  },
+  {
+   "id": "MI04",
+   "scale": "N",
+   "keyed": "+",
+   "text_en": "Have frequent mood swings.",
+   "text": {
+    "ru": "У меня часто меняется настроение",
+    "kk": "Көңіл-күйім жиі өзгереді"
+   }
+  },
+  {
+   "id": "MI05",
+   "scale": "I",
+   "keyed": "+",
+   "text_en": "Have a vivid imagination.",
+   "text": {
+    "ru": "У меня богатое воображение",
+    "kk": "Менің қиялым бай"
+   }
+  },
+  {
+   "id": "MI06",
+   "scale": "E",
+   "keyed": "-",
+   "text_en": "Don't talk a lot.",
+   "text": {
+    "ru": "Я немногословен(на)",
+    "kk": "Мен көп сөйлемеймін"
+   }
+  },
+  {
+   "id": "MI07",
+   "scale": "A",
+   "keyed": "-",
+   "text_en": "Am not interested in other people's problems.",
+   "text": {
+    "ru": "Меня не интересуют проблемы других людей",
+    "kk": "Басқа адамдардың мәселелері мені қызықтырмайды"
+   }
+  },
+  {
+   "id": "MI08",
+   "scale": "C",
+   "keyed": "-",
+   "text_en": "Often forget to put things back in their proper place.",
+   "text": {
+    "ru": "Часто забываю класть вещи на место",
+    "kk": "Заттарды орнына қоюды жиі ұмытып кетемін"
+   }
+  },
+  {
+   "id": "MI09",
+   "scale": "N",
+   "keyed": "-",
+   "text_en": "Am relaxed most of the time.",
+   "text": {
+    "ru": "Большую часть времени я спокоен(на)",
+    "kk": "Көбіне мен сабырлымын"
+   }
+  },
+  {
+   "id": "MI10",
+   "scale": "I",
+   "keyed": "-",
+   "text_en": "Am not interested in abstract ideas.",
+   "text": {
+    "ru": "Мне неинтересны отвлечённые идеи",
+    "kk": "Дерексіз идеялар мені қызықтырмайды"
+   }
+  },
+  {
+   "id": "MI11",
+   "scale": "E",
+   "keyed": "+",
+   "text_en": "Talk to a lot of different people at parties.",
+   "text": {
+    "ru": "На праздниках общаюсь со многими разными людьми",
+    "kk": "Мерекелерде көптеген әртүрлі адамдармен сөйлесемін"
+   }
+  },
+  {
+   "id": "MI12",
+   "scale": "A",
+   "keyed": "+",
+   "text_en": "Feel others' emotions.",
+   "text": {
+    "ru": "Я чувствую эмоции других людей",
+    "kk": "Басқалардың эмоциясын сезінемін"
+   }
+  },
+  {
+   "id": "MI13",
+   "scale": "C",
+   "keyed": "+",
+   "text_en": "Like order.",
+   "text": {
+    "ru": "Я люблю порядок",
+    "kk": "Тәртіпті жақсы көремін"
+   }
+  },
+  {
+   "id": "MI14",
+   "scale": "N",
+   "keyed": "+",
+   "text_en": "Get upset easily.",
+   "text": {
+    "ru": "Я легко расстраиваюсь",
+    "kk": "Тез ренжимін"
+   }
+  },
+  {
+   "id": "MI15",
+   "scale": "I",
+   "keyed": "-",
+   "text_en": "Have difficulty understanding abstract ideas.",
+   "text": {
+    "ru": "Мне трудно понимать отвлечённые идеи",
+    "kk": "Дерексіз идеяларды түсіну маған қиын"
+   }
+  },
+  {
+   "id": "MI16",
+   "scale": "E",
+   "keyed": "-",
+   "text_en": "Keep in the background.",
+   "text": {
+    "ru": "Стараюсь держаться в стороне, не на виду",
+    "kk": "Көзге түспей, шетте жүруге тырысамын"
+   }
+  },
+  {
+   "id": "MI17",
+   "scale": "A",
+   "keyed": "-",
+   "text_en": "Am not really interested in others.",
+   "text": {
+    "ru": "Другие люди мне не особенно интересны",
+    "kk": "Басқа адамдар маған онша қызық емес"
+   }
+  },
+  {
+   "id": "MI18",
+   "scale": "C",
+   "keyed": "-",
+   "text_en": "Make a mess of things.",
+   "text": {
+    "ru": "Я часто устраиваю беспорядок",
+    "kk": "Жиі ретсіздік жасаймын"
+   }
+  },
+  {
+   "id": "MI19",
+   "scale": "N",
+   "keyed": "-",
+   "text_en": "Seldom feel blue.",
+   "text": {
+    "ru": "Мне редко бывает грустно",
+    "kk": "Сирек мұңаямын"
+   }
+  },
+  {
+   "id": "MI20",
+   "scale": "I",
+   "keyed": "-",
+   "text_en": "Do not have a good imagination.",
+   "text": {
+    "ru": "У меня не очень хорошее воображение",
+    "kk": "Менің қиялым онша жақсы емес"
+   }
+  }
+ ]
+}

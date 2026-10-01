@@ -10,8 +10,11 @@ import logging
 import threading
 from dataclasses import asdict
 
-from app import __version__
+import random
+
+from app import __version__, content
 from app.battery.plan import plan_for
+from app.session.result import build_result
 from app.device.link import DeviceLink
 from app.session.session import Session, SessionStore, Student
 
@@ -82,13 +85,38 @@ class Api:
             hook(payload or {})
         return {"ok": True, "sample": event["sample"]}
 
+    def session_content(self) -> dict:
+        """Содержимое батареи на языке ученика в порядке этой сессии.
+
+        Порядок утверждений и карточек перемешивается по id сессии: у разных
+        учеников он разный, у одной сессии — воспроизводимый.
+        """
+        session = self._session
+        if session is None:
+            return {"error": "нет активной сессии"}
+        data = content.for_window(session.meta["student"]["lang"])
+        rng = random.Random(session.id)
+        rng.shuffle(data["interests"]["items"])
+        rng.shuffle(data["cards"])
+        session.mark("content_order", {
+            "interests": [i["id"] for i in data["interests"]["items"]],
+            "cards": [c["id"] for c in data["cards"]],
+        })
+        return data
+
     def session_finish(self) -> dict:
         session = self._session
         if session is None:
             return {"error": "нет активной сессии"}
         meta = session.finish()
-        return {"id": meta["id"], "status": meta["status"], "samples": meta.get("samples"),
-                "fs": meta.get("fs")}
+        summary = {"id": meta["id"], "status": meta["status"], "samples": meta.get("samples"),
+                   "fs": meta.get("fs"), "result": None}
+        try:
+            summary["result"] = build_result(session.folder)
+        except Exception as error:  # итог пересчитывается из сырых файлов позже
+            log.exception("расчёт итога %s", meta["id"])
+            summary["result_error"] = str(error)
+        return summary
 
     def session_abort(self, reason: str = "") -> dict:
         session = self._session

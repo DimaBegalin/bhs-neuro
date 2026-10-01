@@ -61,6 +61,95 @@ def device_setup(kind: str, replay: Path | None, speed: float):
     return (lambda: ReplayDevice(path, speed=speed)), {}
 
 
+def selftest(out: Path, window: bool) -> int:
+    """Проверка собранного приложения без человека: содержимое, расчёт, окно.
+
+    Прогоняет сессию с имитатором и ускоренными модулями через тот же Api,
+    что и окно, считает итог и пишет отчёт в out (JSON). С window=True ещё
+    открывает настоящее окно и проверяет, что страница и мост JS поднялись.
+    """
+    import json
+    import tempfile
+    import time
+
+    from app.device.sim import SimDevice
+    from app.session.session import SessionStore as Store
+
+    report: dict = {"version": __version__, "ok": False}
+    try:
+        sim = SimDevice(speed=20.0)
+        link = DeviceLink(lambda: sim)
+        api = Api(link, Store(Path(tempfile.mkdtemp()) / "sessions"), manager="selftest", fast=True)
+        api.device_connect()
+        for _ in range(100):
+            if api.device_state()["state"] == "streaming":
+                break
+            time.sleep(0.05)
+        started = api.session_start({"name": "Самопроверка", "grade": 9, "lang": "ru", "with_headband": True})
+        data = api.session_content()
+        api.session_mark("background_closed_start", {})
+        time.sleep(0.5)
+        api.session_mark("background_closed_end", {})
+        from app import content
+        kinds = {i["id"]: i["type"] for i in content.load("interests")["items"]}
+        for item in data["interests"]["items"]:
+            value = {"R": 5, "I": 4, "C": 3}.get(kinds[item["id"]], 1)  # выраженный профиль R-I
+            api.session_mark("interest_answer", {"item": item["id"], "value": value, "rt_ms": 1500})
+        for card in data["cards"]:
+            api.session_mark("card_rating", {"card": card["id"], "liked": True, "rt_ms": 900})
+        summary = api.session_finish()
+        link.disconnect()
+        result = summary.get("result") or {}
+        report.update(plan=[m["id"] for m in started["plan"]],
+                      top=(result.get("recommendation") or {}).get("top"),
+                      result_error=summary.get("result_error"))
+        try:
+            import neurosdk  # noqa: F401  SDK ободка должен быть внутри сборки
+            report["neurosdk"] = True
+        except Exception as error:
+            report["neurosdk"] = f"нет: {error}"
+        if window:
+            import webview
+            seen: dict = {}
+
+            def probe(win):
+                for _ in range(40):
+                    time.sleep(0.5)
+                    try:
+                        if win.evaluate_js("typeof window.pywebview === 'object' && !!window.pywebview.api"):
+                            seen["bridge"] = True
+                            seen["text"] = win.evaluate_js("document.querySelector('main').innerText.slice(0, 60)")
+                            break
+                    except Exception as error:
+                        seen["error"] = str(error)
+                win.destroy()
+
+            win = webview.create_window("selftest", url=str(UI_INDEX), js_api=api, width=900, height=600)
+            webview.start(probe, win, http_server=True)
+            report["window"] = seen
+        report["ok"] = bool(report.get("top")) and not report.get("result_error") and (
+            not window or report.get("window", {}).get("bridge") is True)
+    except Exception as error:
+        import traceback
+        report["error"] = traceback.format_exc()
+    out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    return 0 if report["ok"] else 1
+
+
+def _hard_exit(code: int) -> None:
+    """Выход без ожидания чужих потоков.
+
+    Встроенный HTTP-сервер pywebview и нативные потоки SDK не всегда
+    завершаются сами: без этого после закрытия окна процесс оставался
+    висеть в фоне и мешал следующему запуску.
+    """
+    import os
+    logging.shutdown()
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(code)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Профориентация BHS с нейромониторингом")
     parser.add_argument("--device", choices=("sdk", "replay", "sim"),
@@ -70,7 +159,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--manager", default="", help="имя менеджера до появления входа (этап 4)")
     parser.add_argument("--debug", action="store_true", help="инструменты разработчика в окне")
     parser.add_argument("--fast", action="store_true", help="укороченные модули (разработка)")
+    parser.add_argument("--selftest", type=Path, default=None,
+                        help="проверить сборку без человека и записать отчёт в этот файл")
+    parser.add_argument("--selftest-window", action="store_true",
+                        help="в самопроверке также открыть окно")
     args = parser.parse_args(argv)
+    if args.selftest is not None:
+        _hard_exit(selftest(args.selftest, args.selftest_window))
 
     _configure_logging(args.debug)
     log.info("запуск %s, источник %s", __version__, args.device)
@@ -92,6 +187,7 @@ def main(argv: list[str] | None = None) -> int:
         api.session_abort("окно приложения закрыто во время сессии")
         link.disconnect()
         log.info("выход")
+    _hard_exit(0)
     return 0
 
 

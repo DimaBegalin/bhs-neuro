@@ -207,12 +207,27 @@ function showSummary(result) {
       h("h2", {}, ctx.student.name),
       h("p", {}, `Длительность: ${Math.floor(seconds / 60)} мин ${seconds % 60} с`),
       h("p", {}, ctx.withHeadband ? `Записано сигнала: ${minutes} мин` : "Без ободка"),
-      h("p", { class: "muted" }, "Отчёт и рекомендация появятся на этапах 2–3.")),
+      resultBlock(result)),
     ctx.withHeadband ? h("div", { class: "card" },
       h("p", {}, "Перед следующим учеником снимите ободок, протрите электроды и переподключите его: после снятия ободок около 30 секунд держит старое соединение.")) : null,
     h("div", { class: "row" },
       h("button", { onclick: () => showHome() }, "К списку сессий"),
       h("button", { class: "primary big", onclick: () => showNewStudent() }, "Следующий ученик"))));
+}
+
+function resultBlock(summary) {
+  const r = summary.result;
+  if (!r) return h("p", { class: "error" }, `Итог не посчитан: ${summary.result_error || "нет данных"}`);
+  const level = { bright: "ярко", moderate: "умеренно", flat: "пока не выражены" }[r.interests.level];
+  const top = r.recommendation.clusters.filter((c) => r.recommendation.top.includes(c.cluster));
+  return h("div", { class: "stack" },
+    h("p", {}, `Интересы: ${r.interests.top.join(", ")} — ${level}`),
+    h("p", { class: "muted" }, Object.entries(r.interests.scores).map(([k, v]) => `${k} ${Math.round(v)}`).join(" · ")),
+    ...top.map((c) => h("p", {}, h("b", {}, c.cluster), " — ",
+      c.professions.map((p) => p.title.ru).join(", ") || "нет профессий со сходством ≥ 0,3")),
+    h("p", { class: "muted" }, `Пространственные задачи: ${r.spatial.correct} из ${r.spatial.total}`),
+    r.flags.length ? h("p", { class: "error" }, `Флаги: ${r.flags.join(", ")}`) : null,
+    h("p", { class: "muted" }, "Оформленные саммари и отчёты — этап 3."));
 }
 
 // ── экраны ученика ──────────────────────────────────────────────────────
@@ -224,6 +239,7 @@ function showConsent() {
       ctx.withHeadband = withHeadband;
       const result = await call("session_start", { ...ctx.student, with_headband: withHeadband });
       ctx.session = result;
+      ctx.content = await call("session_content");
       ctx.startedAt = Date.now();
       await runPlan(result.plan);
       const done = await call("session_finish");
@@ -268,7 +284,126 @@ const MODULES = {
     await call("session_mark", "background_open_end", {});
     beep(660, 200);
   },
+
+  interests: () => likert(ctx.content.interests.items, ctx.content.interests.scale,
+                          t("interests_question"), "interest_answer"),
+
+  bigfive: async () => {
+    await new Promise((resolve) => mount(h("div", { class: "stage-screen" },
+      h("h1", {}, t("bigfive_intro_title")), h("p", {}, t("bigfive_intro_text")),
+      h("button", { class: "primary big", onclick: resolve }, t("start")))));
+    await likert(ctx.content.bigfive.items, ctx.content.bigfive.scale, ctx.content.bigfive.question,
+                 "bigfive_answer");
+  },
+
+  cards: async (params) => {
+    const cards = ctx.content.cards;
+    await new Promise((resolve) => mount(h("div", { class: "stage-screen" },
+      h("h1", {}, t("cards_intro_title")), h("p", {}, t("cards_intro_text")),
+      h("button", { class: "primary big", onclick: resolve }, t("start")))));
+    for (let i = 0; i < cards.length; i++) {
+      const card = cards[i];
+      mount(h("div", { class: "stage-screen" }, h("div", { class: "cross" }, "+")));
+      await sleep(params.rest_s * 1000);
+      mount(h("div", { class: "stage-screen card-show" },
+        h("img", { src: card.image, alt: "" }), h("h1", {}, card.text)));
+      await call("session_mark", "card_show", { card: card.id });
+      await sleep(params.show_s * 1000);
+      await call("session_mark", "card_hide", { card: card.id });
+      const shownAt = performance.now();
+      const liked = await new Promise((done) => mount(h("div", { class: "stage-screen" },
+        progress(i, cards.length),
+        h("h1", {}, card.text), h("p", {}, t("cards_question")),
+        h("div", { class: "row" },
+          h("button", { class: "big", onclick: () => done(false) }, t("no")),
+          h("button", { class: "primary big", onclick: () => done(true) }, t("yes"))))));
+      await call("session_mark", "card_rating",
+                 { card: card.id, liked, rt_ms: Math.round(performance.now() - shownAt) });
+    }
+  },
+
+  spatial: async () => {
+    const { instruction, time_limit_s: limit, items, options } = ctx.content.spatial;
+    await new Promise((resolve) => mount(h("div", { class: "stage-screen" },
+      h("h1", {}, t("spatial_intro_title")), h("p", {}, instruction),
+      h("button", { class: "primary big", onclick: resolve }, t("start")))));
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const shownAt = performance.now();
+      const timer = h("div", { class: "timer" });
+      const choice = await new Promise((done) => {
+        let left = limit;
+        timer.textContent = `${left}`;
+        const tick = setInterval(() => {
+          left -= 1;
+          timer.textContent = `${Math.max(left, 0)}`;
+          if (left <= 0) { clearInterval(tick); done(null); }
+        }, 1000);
+        mount(h("div", { class: "stage-screen spatial" },
+          progress(i, items.length),
+          h("img", { src: item.image, alt: "" }),
+          h("div", { class: "row" }, ...options.map((option) =>
+            h("button", { class: "big", onclick: () => { clearInterval(tick); done(option.value); } }, option.label))),
+          timer));
+      });
+      await call("session_mark", "spatial_answer",
+                 { item: item.id, choice, rt_ms: choice === null ? null : Math.round(performance.now() - shownAt) });
+    }
+  },
+
+  context: async () => {
+    const chosen = new Set();
+    const max = ctx.content.max_subjects;
+    await new Promise((resolve) => {
+      const render = () => mount(h("div", { class: "stage-screen" },
+        h("h1", {}, t("context_title")), h("p", {}, t("context_text").replace("{n}", max)),
+        h("div", { class: "subjects" }, ...ctx.content.subjects.map((s) =>
+          h("button", { class: chosen.has(s.id) ? "primary" : "",
+                        disabled: !chosen.has(s.id) && chosen.size >= max,
+                        onclick: () => { chosen.has(s.id) ? chosen.delete(s.id) : chosen.add(s.id); render(); } },
+            s.text))),
+        h("button", { class: "primary big", disabled: chosen.size === 0, onclick: resolve }, t("done"))));
+      render();
+    });
+    await call("session_mark", "context_subjects", { subjects: [...chosen] });
+  },
 };
+
+// Утверждение на экране, шкала из 5 кнопок, клавиши 1–5, можно вернуться.
+async function likert(items, scale, question, eventKind) {
+  const answers = {};
+  let index = 0;
+  await new Promise((resolve) => {
+    const render = () => {
+      const item = items[index];
+      const shownAt = performance.now();
+      const choose = async (value) => {
+        const rt = Math.round(performance.now() - shownAt);
+        answers[item.id] = value;
+        document.removeEventListener("keydown", onKey);
+        await call("session_mark", eventKind, { item: item.id, value, rt_ms: rt });
+        index += 1;
+        if (index >= items.length) resolve(); else render();
+      };
+      const onKey = (e) => { if (e.key >= "1" && e.key <= "5") choose(Number(e.key)); };
+      document.addEventListener("keydown", onKey);
+      mount(h("div", { class: "stage-screen" },
+        progress(index, items.length),
+        h("p", { class: "muted" }, question),
+        h("h1", {}, item.text),
+        h("div", { class: "scale" }, ...scale.map((label, i) =>
+          h("button", { class: answers[item.id] === i + 1 ? "primary" : "", onclick: () => choose(i + 1) },
+            h("b", {}, String(i + 1)), h("span", {}, label)))),
+        index > 0 ? h("button", { class: "ghost", onclick: () => {
+          document.removeEventListener("keydown", onKey); index -= 1; render(); } }, t("back")) : null));
+    };
+    render();
+  });
+}
+
+function progress(index, total) {
+  return h("div", { class: "progress" }, h("div", { style: `width:${Math.round(index / total * 100)}%` }));
+}
 
 async function countdown(seconds, el) {
   for (let left = seconds; left > 0; left--) {

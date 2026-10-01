@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
 NAME = "BHS-Neuro"
 SDK_CHECK_NAME = "BHS-SDK-Check"
+APP_NAME = "BHS-Profor"
 ENV_KEYS = ("SUPABASE_URL", "SUPABASE_ANON_KEY", "TEST_URL")
 
 # GitHub Windows runner иногда оставляет stdout в CP1252, которая не умеет
@@ -40,6 +41,41 @@ def _settings() -> dict[str, str]:
                 if key.strip() in ENV_KEYS and not values[key.strip()]:
                     values[key.strip()] = value.strip()
     return values
+
+
+def build_app() -> None:
+    """Приложение версии 2.0: одно окно (pywebview + WebView2), без консоли."""
+    separator = ";"
+    command = [
+        sys.executable, "-m", "PyInstaller",
+        "--noconfirm", "--clean", "--onefile", "--windowed",
+        "--name", APP_NAME,
+        "--distpath", str(DIST),
+        "--workpath", str(ROOT / "build" / "pyinstaller-app"),
+        "--specpath", str(ROOT / "build"),
+        "--paths", str(ROOT),
+        "--add-data", f"{ROOT / 'app' / 'ui'}{separator}app/ui",
+        "--add-data", f"{ROOT / 'app' / 'content'}{separator}app/content",
+        "--collect-all", "webview",
+        "--collect-all", "clr_loader",
+        "--collect-all", "pythonnet",
+        "--hidden-import", "clr",
+        "--collect-all", "neurosdk",
+        "--hidden-import", "app.device.sdk",
+        "--hidden-import", "app.device.sim",
+        "--hidden-import", "app.device.replay",
+        "--hidden-import", "bridge.device",
+        "--exclude-module", "objc",
+        "--exclude-module", "Foundation",
+        "--exclude-module", "Quartz",
+        "--exclude-module", "CoreBluetooth",
+        str(ROOT / "app" / "main.py"),
+    ]
+    subprocess.run(command, cwd=ROOT, check=True)
+    target = DIST / f"{APP_NAME}.exe"
+    if not target.exists():
+        raise SystemExit("сборка не создала EXE приложения")
+    print(f"Готово: {target} ({target.stat().st_size / 1024 / 1024:.1f} МБ)")
 
 
 def build_sdk_check() -> None:
@@ -131,5 +167,7 @@ def main() -> None:
 if __name__ == "__main__":
     if "--sdk-check" in sys.argv[1:]:
         build_sdk_check()
+    elif "--app" in sys.argv[1:]:
+        build_app()
     else:
         main()

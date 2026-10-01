@@ -1,0 +1,292 @@
+{
+ "_source": "IIP RIASEC Markers, Activities Set A: Armstrong, P. I., Allison, W., & Rounds, J. (2008). Journal of Vocational Behavior, 73(2), 287-299. 5 пунктов на тип из 8, отбор по нагрузке (OpenPsychometrics, N=108 430) и разнообразию содержания. Перевод и адаптация BHS; казахский — черновик для вычитки носителем.",
+ "_license": "Авторы разрешают бесплатное использование только в некоммерческих целях (jrounds.weebly.com). Пилот — бесплатный. До платного запуска: письменное разрешение авторов или замена пунктов.",
+ "scale": {
+  "ru": [
+   "Совсем не нравится",
+   "Не нравится",
+   "Не уверен(а)",
+   "Нравится",
+   "Очень нравится"
+  ],
+  "kk": [
+   "Мүлдем ұнамайды",
+   "Ұнамайды",
+   "Білмеймін",
+   "Ұнайды",
+   "Өте ұнайды"
+  ]
+ },
+ "items": [
+  {
+   "id": "ACT-A-R6",
+   "type": "R",
+   "text_en": "Fix a broken faucet",
+   "text": {
+    "ru": "Починить сломанный кран",
+    "kk": "Сынған шүмекті жөндеу"
+   }
+  },
+  {
+   "id": "ACT-A-R8",
+   "type": "R",
+   "text_en": "Install flooring in houses",
+   "text": {
+    "ru": "Укладывать полы в домах",
+    "kk": "Үйлерге еден төсеу"
+   }
+  },
+  {
+   "id": "ACT-A-R5",
+   "type": "R",
+   "text_en": "Operate a grinding machine in a factory",
+   "text": {
+    "ru": "Работать на станке на заводе",
+    "kk": "Зауытта станокта жұмыс істеу"
+   }
+  },
+  {
+   "id": "ACT-A-R4",
+   "type": "R",
+   "text_en": "Assemble electronic parts",
+   "text": {
+    "ru": "Собирать электронные устройства из деталей",
+    "kk": "Электрондық құрылғыларды бөлшектерден құрастыру"
+   }
+  },
+  {
+   "id": "ACT-A-R2",
+   "type": "R",
+   "text_en": "Lay brick or tile",
+   "text": {
+    "ru": "Класть кирпич или плитку",
+    "kk": "Кірпіш немесе плитка қалау"
+   }
+  },
+  {
+   "id": "ACT-A-I5",
+   "type": "I",
+   "text_en": "Conduct biological research",
+   "text": {
+    "ru": "Проводить биологические исследования",
+    "kk": "Биологиялық зерттеулер жүргізу"
+   }
+  },
+  {
+   "id": "ACT-A-I6",
+   "type": "I",
+   "text_en": "Study whales and other types of marine life",
+   "text": {
+    "ru": "Изучать китов и других морских животных",
+    "kk": "Киттер мен басқа теңіз жануарларын зерттеу"
+   }
+  },
+  {
+   "id": "ACT-A-I4",
+   "type": "I",
+   "text_en": "Develop a new medical treatment or procedure",
+   "text": {
+    "ru": "Разрабатывать новый способ лечения болезни",
+    "kk": "Аурудың жаңа емдеу әдісін әзірлеу"
+   }
+  },
+  {
+   "id": "ACT-A-I1",
+   "type": "I",
+   "text_en": "Study the structure of the human body",
+   "text": {
+    "ru": "Изучать, как устроено тело человека",
+    "kk": "Адам денесінің құрылысын зерттеу"
+   }
+  },
+  {
+   "id": "ACT-A-I8",
+   "type": "I",
+   "text_en": "Make a map of the bottom of an ocean",
+   "text": {
+    "ru": "Составлять карту дна океана",
+    "kk": "Мұхит түбінің картасын жасау"
+   }
+  },
+  {
+   "id": "ACT-A-A4",
+   "type": "A",
+   "text_en": "Write a song",
+   "text": {
+    "ru": "Сочинить песню",
+    "kk": "Ән шығару"
+   }
+  },
+  {
+   "id": "ACT-A-A2",
+   "type": "A",
+   "text_en": "Direct a play",
+   "text": {
+    "ru": "Ставить спектакль как режиссёр",
+    "kk": "Режиссер ретінде спектакль қою"
+   }
+  },
+  {
+   "id": "ACT-A-A3",
+   "type": "A",
+   "text_en": "Design artwork for magazines",
+   "text": {
+    "ru": "Делать иллюстрации и оформление для журналов",
+    "kk": "Журналдарға иллюстрация мен безендіру жасау"
+   }
+  },
+  {
+   "id": "ACT-A-A5",
+   "type": "A",
+   "text_en": "Write books or plays",
+   "text": {
+    "ru": "Писать книги или пьесы",
+    "kk": "Кітап немесе пьеса жазу"
+   }
+  },
+  {
+   "id": "ACT-A-A6",
+   "type": "A",
+   "text_en": "Play a musical instrument",
+   "text": {
+    "ru": "Играть на музыкальном инструменте",
+    "kk": "Музыкалық аспапта ойнау"
+   }
+  },
+  {
+   "id": "ACT-A-S5",
+   "type": "S",
+   "text_en": "Help people with family-related problems",
+   "text": {
+    "ru": "Помогать людям решать семейные проблемы",
+    "kk": "Адамдарға отбасылық мәселелерді шешуге көмектесу"
+   }
+  },
+  {
+   "id": "ACT-A-S7",
+   "type": "S",
+   "text_en": "Teach children how to read",
+   "text": {
+    "ru": "Учить детей читать",
+    "kk": "Балаларды оқуға үйрету"
+   }
+  },
+  {
+   "id": "ACT-A-S8",
+   "type": "S",
+   "text_en": "Help elderly people with their daily activities",
+   "text": {
+    "ru": "Помогать пожилым людям в повседневных делах",
+    "kk": "Қарт адамдарға күнделікті істерде көмектесу"
+   }
+  },
+  {
+   "id": "ACT-A-S6",
+   "type": "S",
+   "text_en": "Supervise the activities of children at a camp",
+   "text": {
+    "ru": "Быть вожатым в детском лагере",
+    "kk": "Балалар лагерінде тәлімгер болу"
+   }
+  },
+  {
+   "id": "ACT-A-S2",
+   "type": "S",
+   "text_en": "Do volunteer work at a non-profit organization",
+   "text": {
+    "ru": "Работать волонтёром в благотворительной организации",
+    "kk": "Қайырымдылық ұйымында ерікті болу"
+   }
+  },
+  {
+   "id": "ACT-A-E6",
+   "type": "E",
+   "text_en": "Manage a clothing store",
+   "text": {
+    "ru": "Управлять магазином одежды",
+    "kk": "Киім дүкенін басқару"
+   }
+  },
+  {
+   "id": "ACT-A-E3",
+   "type": "E",
+   "text_en": "Manage the operations of a hotel",
+   "text": {
+    "ru": "Руководить работой гостиницы",
+    "kk": "Қонақ үйдің жұмысын басқару"
+   }
+  },
+  {
+   "id": "ACT-A-E5",
+   "type": "E",
+   "text_en": "Manage a department within a large company",
+   "text": {
+    "ru": "Руководить отделом в крупной компании",
+    "kk": "Ірі компанияда бөлімді басқару"
+   }
+  },
+  {
+   "id": "ACT-A-E7",
+   "type": "E",
+   "text_en": "Sell houses",
+   "text": {
+    "ru": "Продавать дома и квартиры",
+    "kk": "Үйлер мен пәтерлерді сату"
+   }
+  },
+  {
+   "id": "ACT-A-E2",
+   "type": "E",
+   "text_en": "Sell merchandise at a department store",
+   "text": {
+    "ru": "Продавать товары в большом магазине",
+    "kk": "Үлкен дүкенде тауар сату"
+   }
+  },
+  {
+   "id": "ACT-A-C3",
+   "type": "C",
+   "text_en": "Use a computer program to generate customer bills",
+   "text": {
+    "ru": "Выставлять счета клиентам в компьютерной программе",
+    "kk": "Компьютерлік бағдарламада клиенттерге шот жазу"
+   }
+  },
+  {
+   "id": "ACT-A-C8",
+   "type": "C",
+   "text_en": "Keep shipping and receiving records",
+   "text": {
+    "ru": "Вести учёт поступления и отгрузки товаров",
+    "kk": "Тауардың келуі мен жөнелтілуін есепке алу"
+   }
+  },
+  {
+   "id": "ACT-A-C4",
+   "type": "C",
+   "text_en": "Maintain employee records",
+   "text": {
+    "ru": "Вести личные дела сотрудников",
+    "kk": "Қызметкерлердің жеке істерін жүргізу"
+   }
+  },
+  {
+   "id": "ACT-A-C7",
+   "type": "C",
+   "text_en": "Handle customers' bank transactions",
+   "text": {
+    "ru": "Проводить банковские операции клиентов",
+    "kk": "Клиенттердің банк операцияларын жүргізу"
+   }
+  },
+  {
+   "id": "ACT-A-C5",
+   "type": "C",
+   "text_en": "Compute and record statistical and other numerical data",
+   "text": {
+    "ru": "Подсчитывать и записывать статистические данные",
+    "kk": "Статистикалық деректерді есептеп, жазып отыру"
+   }
+  }
+ ]
+}

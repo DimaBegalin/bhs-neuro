@@ -55,9 +55,22 @@ jobs:
           $folder = Get-ChildItem "$env:RUNNER_TEMP" -Directory -Filter "BHS-*" | Select-Object -First 1
           if (-not $folder) { throw "SDK check did not write its report folder" }
           if (-not (Test-Path (Join-Path $folder.FullName "отчёт.json"))) { throw "no report in SDK check folder" }
+      - name: Build v2 application
+        run: python tools/build_windows.py --app
+      - name: Selftest v2 application (session, result, WebView2 window)
+        shell: pwsh
+        run: |
+          $report = Join-Path $env:RUNNER_TEMP "selftest.json"
+          $p = Start-Process -FilePath "dist\BHS-Profor.exe" -ArgumentList "--selftest `"$report`" --selftest-window" -PassThru
+          if (-not $p.WaitForExit(180000)) { Stop-Process -Id $p.Id -Force; throw "selftest timed out" }
+          if (-not (Test-Path $report)) { throw "selftest wrote no report" }
+          Get-Content $report -Encoding UTF8
+          $json = Get-Content $report -Raw -Encoding UTF8 | ConvertFrom-Json
+          if (-not $json.ok) { throw "selftest failed" }
       - name: SHA-256
         shell: pwsh
         run: |
+          Get-FileHash dist\BHS-Profor.exe -Algorithm SHA256 | Format-List | Out-File dist\BHS-Profor.sha256.txt
           Get-FileHash dist\BHS-Neuro.exe -Algorithm SHA256 | Format-List | Out-File dist\BHS-Neuro.sha256.txt
           Get-FileHash dist\BHS-SDK-Check.exe -Algorithm SHA256 | Format-List | Out-File dist\BHS-SDK-Check.sha256.txt
       - uses: actions/upload-artifact@v4
@@ -66,6 +79,13 @@ jobs:
           path: |
             dist/BHS-Neuro.exe
             dist/BHS-Neuro.sha256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BHS-Profor-Windows-x64
+          path: |
+            dist/BHS-Profor.exe
+            dist/BHS-Profor.sha256.txt
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
           name: BHS-SDK-Check-Windows-x64
