@@ -171,28 +171,59 @@ class WinBleHeadbandDevice:
         await self._subscribe(service)
         self.connected = True
 
-    async def _subscribe(self, service) -> None:
+    async def _characteristics(self, service) -> list:
+        """Характеристики сервиса: сначала из кэша Windows, затем с прибора.
+
+        Сервис сначала открываем в общем режиме: если Mind Tracker держит его
+        один, Windows скажет это прямо (SHARING_VIOLATION), а не пустым списком.
+        """
         from winrt.windows.devices.bluetooth import BluetoothCacheMode
+        from winrt.windows.devices.bluetooth.genericattributeprofile import (
+            GattCommunicationStatus, GattOpenStatus, GattSharingMode)
+
+        try:
+            opened = await service.open_async(GattSharingMode.SHARED_READ_AND_WRITE)
+            self._note(f"открытие сервиса: {GattOpenStatus(opened).name}")
+        except Exception as error:  # noqa: BLE001  старые сборки Windows без open_async
+            self._note(f"открытие сервиса: {error}")
+        for mode in (BluetoothCacheMode.CACHED, BluetoothCacheMode.UNCACHED):
+            try:
+                result = await service.get_characteristics_with_cache_mode_async(mode)
+            except Exception as error:  # noqa: BLE001
+                self._note(f"характеристики {mode.name}: {error}")
+                continue
+            found = list(result.characteristics) if result.characteristics is not None else []
+            self._note(f"характеристики {mode.name}: {GattCommunicationStatus(result.status).name}, "
+                       + (", ".join(str(c.uuid)[4:8] for c in found) or "пусто"))
+            if found:
+                return found
+        return []
+
+    async def _subscribe(self, service) -> None:
+        """Подписка на поток. Отказ Windows записать подписку не конец: Mind Tracker
+        уже включил уведомления у прибора, и пакеты могут прийти и так. Решает
+        ожидание первого пакета в _open."""
         from winrt.windows.devices.bluetooth.genericattributeprofile import (
             GattClientCharacteristicConfigurationDescriptorValue as Cccd, GattCommunicationStatus)
 
-        result = await service.get_characteristics_with_cache_mode_async(BluetoothCacheMode.CACHED)
-        characteristics = list(result.characteristics) if result.characteristics is not None else []
-        signal_ok = False
+        characteristics = await self._characteristics(service)
+        has_signal = False
         for characteristic in characteristics:
             key = str(characteristic.uuid).upper()
             if key not in NOTIFY:
                 continue
-            token = characteristic.add_value_changed(
-                lambda sender, args, key=key: self._on_value(key, bytes(args.characteristic_value)))
-            self._subscribed.append((characteristic, token))
-            status = await characteristic.write_client_characteristic_configuration_descriptor_async(
-                Cccd.NOTIFY)
-            self._note(f"подписка {key[4:8]}: {GattCommunicationStatus(status).name}")
-            if key == SIGNAL and status == GattCommunicationStatus.SUCCESS:
-                signal_ok = True
-        if not signal_ok:
-            raise RuntimeError("Windows не дал подписаться на сигнал ободка: " + "; ".join(self.trace[-4:]))
+            has_signal = has_signal or key == SIGNAL
+            try:
+                token = characteristic.add_value_changed(
+                    lambda sender, args, key=key: self._on_value(key, bytes(args.characteristic_value)))
+                self._subscribed.append((characteristic, token))
+                status = await characteristic.write_client_characteristic_configuration_descriptor_async(
+                    Cccd.NOTIFY)
+                self._note(f"подписка {key[4:8]}: {GattCommunicationStatus(status).name}")
+            except Exception as error:  # noqa: BLE001
+                self._note(f"подписка {key[4:8]}: {error}")
+        if not has_signal:
+            raise RuntimeError("Windows не отдал канал сигнала ободка (подробности в логе выше)")
 
     async def _release(self) -> None:
         for characteristic, token in self._subscribed:
