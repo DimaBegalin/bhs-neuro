@@ -29,7 +29,7 @@ def test_event_is_stamped_by_bridge_not_client():
                                            "payload": {"domain": "spatial"}})
     assert response.status_code == 200
     stamped = response.json()["t_s"]
-    assert stamped > 0
+    assert stamped >= 0  # таймер Windows шагает по ~15 мс: сразу после старта бывает ровно 0
     assert recorder.events[-1]["t_s"] == stamped
     assert recorder.events[-1]["kind"] == "block_start"
     assert client.get("/status").json()["phase"] == "spatial"
