@@ -7,7 +7,7 @@
     python -m app.main                      # Mac: проигрыватель последней записи
     python -m app.main --device sim         # имитатор
     python -m app.main --device ble         # живой ободок через Mind Tracker (Mac или Windows)
-    python -m app.main --device auto        # Windows: Mind Tracker, а без него SDK (по умолчанию)
+    python -m app.main --device auto        # Mind Tracker, а без него SDK (на Windows Mind Tracker не пускает)
     python -m app.main --replay путь.npz --speed 2
 """
 from __future__ import annotations
@@ -179,7 +179,7 @@ def _hard_exit(code: int) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Профориентация BHS с нейромониторингом")
     parser.add_argument("--device", choices=("auto", "sdk", "ble", "replay", "sim"),
-                        default="auto" if sys.platform == "win32" else "replay")
+                        default="sdk" if sys.platform == "win32" else "replay")
     parser.add_argument("--replay", type=Path, default=None, help="запись .npz для проигрывателя")
     parser.add_argument("--speed", type=float, default=1.0, help="ускорение проигрывателя и имитатора")
     parser.add_argument("--manager", default="", help="имя менеджера до появления входа (этап 4)")

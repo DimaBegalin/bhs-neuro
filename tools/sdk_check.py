@@ -95,7 +95,7 @@ def _open_headband(log: Log, report: dict):
         from bridge.win_ble_device import DeviceNotFound as NotViaApp, WinBleHeadbandDevice
         device = None
         try:
-            device = WinBleHeadbandDevice(wait_s=5.0)
+            device = WinBleHeadbandDevice(wait_s=1.0)
         except NotViaApp as error:
             log(f"   через Mind Tracker: {error}")
         except Exception as error:
@@ -176,9 +176,10 @@ def run(argv: list[str] | None = None) -> int:
     log(f"Папка с результатом: {out}")
     log()
     log(f"Канал через Mind Tracker: {_winrt_status(report_seed)}")
-    log("Перед началом: наденьте ободок, откройте Mind Tracker BCI, подключите в нём")
-    log("ободок и откройте вкладку «Мониторинг». Mind Tracker не закрывайте.")
-    ask("Когда в Mind Tracker идёт сигнал, нажмите Enter… ")
+    log("Перед началом: закройте Mind Tracker (и значок в трее), наденьте ободок,")
+    log("нажмите кнопку на нём. На Windows рабочий путь прямой, через SDK:")
+    log("Mind Tracker держит ободок монопольно и второе подключение не пускает.")
+    ask("Когда индикатор ободка мигает, нажмите Enter… ")
 
     report: dict = {"started": datetime.now().isoformat(timespec="seconds"), **report_seed}
     device = None

@@ -243,7 +243,7 @@ function showDevice() {
     } else if (streaming && good < 4) {
       hint.textContent = "Поправьте ободок: электроды без контакта или с шумом. Смочите их и прижмите плотнее.";
     } else if (s.state === "idle") {
-      hint.textContent = "Наденьте ободок, подключите его в Mind Tracker BCI, откройте там «Мониторинг» и нажмите «Подключить».";
+      hint.textContent = "Закройте Mind Tracker, наденьте ободок, нажмите на нём кнопку и нажмите «Подключить».";
     } else {
       hint.textContent = "";
     }

@@ -87,7 +87,15 @@ class BrainBitDevice:
             self.last_error = "связь с ободком потеряна"
 
     def contact(self) -> dict:
-        """Качество контакта по каналам от 0 до 1, больше это лучше."""
+        """Качество контакта по каналам от 0 до 1, больше это лучше.
+
+        Ободок Headband с прошивкой 4.8.10 шлёт сопротивление, которое SDK 1.0.15
+        не разбирает («Process channel pack error», 05.10.2026). Пока не пришло
+        ни одного значения, контакт неизвестен: отдаём 1, и качество канала
+        судится по самому сигналу, а не «нет контакта» на всех четырёх.
+        """
+        if not getattr(self, "resist_seen", False):
+            return {name: 1.0 for name in CHANNELS}
         return dict(self._contact)
 
     def battery(self) -> int:
@@ -102,6 +110,7 @@ class BrainBitDevice:
         self._sensor.exec_command(SensorCommand.StopResist)
         self._sensor.unset_resist_callbacks()
         if readings:
+            self.resist_seen = True
             last = readings[-1]
             for name in CHANNELS:
                 raw = float(getattr(last, name))
@@ -188,6 +197,10 @@ class BrainBitDevice:
         self.connected = False
 
     def _handle_resist(self, sensor, data) -> None:
+        data = data[-1] if isinstance(data, list) else data
+        if data is None:
+            return
+        self.resist_seen = True
         for name in CHANNELS:
             raw = float(getattr(data, name, 0.0))
             self._contact[name] = max(0.0, min(1.0, GOOD_RESISTANCE_OHM / max(raw, 1.0)))
