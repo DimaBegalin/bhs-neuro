@@ -29,6 +29,7 @@ if str(ROOT) not in sys.path:
 from app.eeg.signal_check import CHANNELS, check_recording, judge  # noqa: E402
 
 PHASE_S = 33.0
+HANG_S = 60.0  # подключение дольше минуты: стеки потоков в сбой.txt
 SKIP_S = 3.0  # первые секунды после команды: человек ещё закрывает глаза
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -107,9 +108,7 @@ def _open_headband(log: Log, report: dict):
             if trace is None:
                 import bridge.win_ble_device as module
                 trace = module.LAST_TRACE
-            report["via_app_trace"] = list(trace)
-            for line in trace:
-                log(f"   · {line}")
+            report["via_app_trace"] = list(trace)   # в лог шаги уже ушли через NOTE_HOOK
         if device is not None:
             report["route"] = "mind_tracker"
             log("   путь: через Mind Tracker BCI")
@@ -118,6 +117,7 @@ def _open_headband(log: Log, report: dict):
     log("   путь: напрямую через SDK (Mind Tracker должен быть закрыт)")
     from app.device.base import DeviceNotFound as NotFound
     from app.device.sdk import SdkDevice
+    log("   SDK: ищу ободок…")
     try:
         device = SdkDevice(scan_seconds=30.0)
     except NotFound as error:
@@ -126,8 +126,6 @@ def _open_headband(log: Log, report: dict):
             ("Name", "SerialNumber", "Address", "SensFamily", "SensModel")}
     report["route"] = device.source
     report["raw_trace"] = device.raw_trace
-    for line in device.raw_trace:
-        log(f"   · {line}")
     if device.raw is not None:
         log("   сигнал разбираем сами: SDK запускает поток, пакеты читаем напрямую")
         return device, info, (lambda: _resistance_from_stream(device.raw))
@@ -183,6 +181,12 @@ def run(argv: list[str] | None = None) -> int:
     out = _output_dir(args.out)
     report_seed: dict = {}
     log = Log(out / "лог.txt")
+    # падение в нативном коде или зависание: стеки всех потоков в файл
+    import faulthandler
+    crash = open(out / "сбой.txt", "w", encoding="utf-8")
+    faulthandler.enable(crash, all_threads=True)
+    import bridge.win_ble_device as raw_module
+    raw_module.NOTE_HOOK = lambda text: log(f"   · {text}")
     log("Проверка ободка BHS · этап 0 версии 2.0")
     log(f"Windows: {platform.platform()} · Python {platform.python_version()}")
     log(f"Папка с результатом: {out}")
@@ -202,7 +206,10 @@ def run(argv: list[str] | None = None) -> int:
             device = FakeDevice()
             info, resistance = {"Name": "имитатор"}, (lambda: {})
         else:
+            # подключение зависает чаще всего: раз в минуту стеки потоков в сбой.txt
+            faulthandler.dump_traceback_later(HANG_S, repeat=True, file=crash)
             device, info, resistance = _open_headband(log, report)
+            faulthandler.cancel_dump_traceback_later()
         report["device"] = dict(info)
         report["device"]["fs"] = device.fs
         report["device"]["battery"] = _safe(device.battery)
@@ -249,6 +256,7 @@ def run(argv: list[str] | None = None) -> int:
             _safe(getattr(device, "close", device.stop))
         (out / "отчёт.json").write_text(json.dumps(report, ensure_ascii=False, indent=2,
                                                     default=str), encoding="utf-8")
+        faulthandler.cancel_dump_traceback_later()
     log()
     log(f"Пришлите разработке папку целиком: {out}")
     ask("Нажмите Enter, чтобы закрыть окно… ")

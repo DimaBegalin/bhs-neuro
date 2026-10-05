@@ -43,12 +43,16 @@ class SdkDevice:
     def _attach_raw(self) -> None:
         """Запускаем поток командой SDK и слушаем сырые пакеты сами."""
         import bridge.win_ble_device as raw_module
+        note = raw_module.NOTE_HOOK or (lambda _text: None)
         try:
+            note("SDK: запускаю поток")
             self._device.start(_ignore)
+            note("SDK: поток запущен, подписываюсь на сырые пакеты")
             self._raw = raw_module.WinBleHeadbandDevice(wait_s=RAW_WAIT_S)
             self.raw_trace = list(self._raw.trace)
         except Exception as error:  # noqa: BLE001  без сырого канала остаётся SDK
             self._raw = None
+            note(f"сырые пакеты недоступны: {error}")
             try:  # вернуть SDK в исходное состояние: поток запустит start
                 self._device.stop()
             except Exception:  # noqa: BLE001

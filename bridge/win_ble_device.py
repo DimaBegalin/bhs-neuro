@@ -29,6 +29,8 @@ RETRY_S = 1.5
 NOTIFY = (SIGNAL, RESIST, STATUS, PULSE)
 # путь последней попытки: если конструктор упал, объекта нет, а лог нужен
 LAST_TRACE: list[str] = []
+# куда ещё писать шаги сразу, а не после подключения (утилита проверки)
+NOTE_HOOK = None
 
 
 class DeviceNotFound(RuntimeError):
@@ -73,15 +75,18 @@ class WinBleHeadbandDevice:
         self._thread = threading.Thread(target=self._run, args=(wait_s,),
                                         name="win-ble", daemon=True)
         self._thread.start()
+        self._note("ищу ободок среди подключённых к Windows…")
         if not self._ready.wait(wait_s + 20.0):
             self.close()
             raise DeviceNotFound("системный Bluetooth не ответил вовремя")
         if self._error is not None:
             self.close()
             raise self._error
+        self._note("подписка готова, жду первый пакет…")
         deadline = time.monotonic() + first_packet_s
         while self.packets_received == 0 and time.monotonic() < deadline:
             time.sleep(0.1)
+        self._note(f"пакетов за {first_packet_s:.0f} с: {self.packets_received}")
         if self.packets_received == 0:
             self.close()
             raise NoStream("ободок подключён, но сигнал не идёт: откройте в Mind Tracker "
@@ -110,6 +115,11 @@ class WinBleHeadbandDevice:
 
     def _note(self, text: str) -> None:
         self.trace.append(text)
+        if NOTE_HOOK is not None:
+            try:
+                NOTE_HOOK(text)
+            except Exception:  # noqa: BLE001
+                pass
 
     async def _connected_headbands(self) -> list:
         """Подключённые к Windows приборы с сервисом ободка (обычно один)."""
