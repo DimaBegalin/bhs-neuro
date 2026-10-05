@@ -11,6 +11,14 @@ pyneurosdk2==1.0.15  # ниже 1.0.15 нет семейства LEHeadband, п�
 brainflow==5.16.0
 pyobjc-framework-CoreBluetooth==12.2.2; sys_platform == "darwin"  # прямой Bluetooth-канал моста
 pyobjc-framework-libdispatch==12.2.2; sys_platform == "darwin"
+# канал через Mind Tracker на Windows: системный Bluetooth (WinRT)
+winrt-runtime==3.2.1; sys_platform == "win32"
+winrt-Windows.Devices.Bluetooth==3.2.1; sys_platform == "win32"
+winrt-Windows.Devices.Bluetooth.GenericAttributeProfile==3.2.1; sys_platform == "win32"
+winrt-Windows.Devices.Enumeration==3.2.1; sys_platform == "win32"
+winrt-Windows.Foundation==3.2.1; sys_platform == "win32"
+winrt-Windows.Foundation.Collections==3.2.1; sys_platform == "win32"
+winrt-Windows.Storage.Streams==3.2.1; sys_platform == "win32"
 pyobjc-framework-Quartz==12.2.2; sys_platform == "darwin"  # зеркало окна штатного приложения
 # отчёт
 reportlab==4.2.5

@@ -43,6 +43,18 @@ def _settings() -> dict[str, str]:
     return values
 
 
+WINRT = [  # канал через Mind Tracker: пакеты WinRT лежат в пространстве имён winrt
+    "--collect-all", "winrt",
+    "--hidden-import", "winrt.windows.devices.bluetooth",
+    "--hidden-import", "winrt.windows.devices.bluetooth.genericattributeprofile",
+    "--hidden-import", "winrt.windows.devices.enumeration",
+    "--hidden-import", "winrt.windows.foundation",
+    "--hidden-import", "winrt.windows.foundation.collections",
+    "--hidden-import", "winrt.windows.storage.streams",
+    "--hidden-import", "bridge.win_ble_device",
+]
+
+
 def build_app() -> None:
     """Приложение версии 2.0: одно окно (pywebview + WebView2), без консоли.
 
@@ -79,6 +91,8 @@ def build_app() -> None:
         "--hidden-import", "app.device.sim",
         "--hidden-import", "app.device.replay",
         "--hidden-import", "bridge.device",
+        "--hidden-import", "app.device.win_ble",
+        *WINRT,
         "--exclude-module", "objc",
         "--exclude-module", "Foundation",
         "--exclude-module", "Quartz",
@@ -108,6 +122,7 @@ def build_sdk_check() -> None:
         "--collect-all", "neurosdk",
         "--hidden-import", "bridge.device",
         "--hidden-import", "bridge.fake_device",
+        *WINRT,
         str(ROOT / "tools" / "sdk_check.py"),
     ]
     subprocess.run(command, cwd=ROOT, check=True)

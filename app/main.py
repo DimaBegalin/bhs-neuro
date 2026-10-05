@@ -6,7 +6,8 @@
 
     python -m app.main                      # Mac: проигрыватель последней записи
     python -m app.main --device sim         # имитатор
-    python -m app.main --device ble         # живой ободок на Mac через Mind Tracker
+    python -m app.main --device ble         # живой ободок через Mind Tracker (Mac или Windows)
+    python -m app.main --device auto        # Windows: Mind Tracker, а без него SDK (по умолчанию)
     python -m app.main --replay путь.npz --speed 2
 """
 from __future__ import annotations
@@ -48,7 +49,13 @@ def device_setup(kind: str, replay: Path | None, speed: float):
     if kind == "sdk":
         from app.device.sdk import SdkDevice
         return SdkDevice, {}
+    if kind == "auto":
+        from app.device.win_ble import auto_device
+        return auto_device, {}
     if kind == "ble":
+        if sys.platform == "win32":
+            from app.device.win_ble import WinBleDevice
+            return WinBleDevice, {}
         from app.device.mac_ble import MacBleDevice
         return MacBleDevice, {}
     if kind == "sim":
@@ -118,6 +125,14 @@ def selftest(out: Path, window: bool, sessions_root: Path | None = None) -> int:
             report["neurosdk"] = True
         except Exception as error:
             report["neurosdk"] = f"нет: {error}"
+        if sys.platform == "win32":
+            try:  # канал через Mind Tracker тоже должен быть внутри сборки
+                import bridge.win_ble_device  # noqa: F401
+                import winrt.windows.devices.bluetooth.genericattributeprofile  # noqa: F401
+                import winrt.windows.devices.enumeration  # noqa: F401
+                report["winrt"] = True
+            except Exception as error:
+                report["winrt"] = f"нет: {error}"
         if window:
             import webview
             seen: dict = {}
@@ -138,6 +153,7 @@ def selftest(out: Path, window: bool, sessions_root: Path | None = None) -> int:
             webview.start(probe, win, http_server=True)
             report["window"] = seen
         report["ok"] = bool(report.get("top")) and not report.get("result_error") and report["reports"] and (
+            report.get("winrt", True) is True) and (
             not window or report.get("window", {}).get("bridge") is True)
     except Exception as error:
         import traceback
@@ -162,8 +178,8 @@ def _hard_exit(code: int) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Профориентация BHS с нейромониторингом")
-    parser.add_argument("--device", choices=("sdk", "ble", "replay", "sim"),
-                        default="sdk" if sys.platform == "win32" else "replay")
+    parser.add_argument("--device", choices=("auto", "sdk", "ble", "replay", "sim"),
+                        default="auto" if sys.platform == "win32" else "replay")
     parser.add_argument("--replay", type=Path, default=None, help="запись .npz для проигрывателя")
     parser.add_argument("--speed", type=float, default=1.0, help="ускорение проигрывателя и имитатора")
     parser.add_argument("--manager", default="", help="имя менеджера до появления входа (этап 4)")

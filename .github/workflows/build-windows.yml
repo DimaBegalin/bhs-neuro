@@ -56,6 +56,8 @@ jobs:
           $folder = Get-ChildItem "$env:RUNNER_TEMP" -Directory -Filter "BHS-*" | Select-Object -First 1
           if (-not $folder) { throw "SDK check did not write its report folder" }
           if (-not (Test-Path (Join-Path $folder.FullName "отчёт.json"))) { throw "no report in SDK check folder" }
+          $check = Get-Content (Join-Path $folder.FullName "отчёт.json") -Raw -Encoding UTF8 | ConvertFrom-Json
+          if ($check.winrt -ne $true) { throw "SDK check has no WinRT: $($check.winrt)" }
       - name: Build v2 application
         run: python tools/build_windows.py --app
       - name: Selftest v2 application (session, result, WebView2 window)

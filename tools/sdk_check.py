@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Проверка ободка через официальный SDK на Windows (этап 0 версии 2.0).
+"""Проверка ободка на Windows (этап 0 версии 2.0).
 
-Подключается к ободку без Mind Tracker, меряет сопротивление электродов,
+Два пути, как в приложении. Если Mind Tracker BCI уже держит ободок,
+подключаемся к нему вторым и слушаем тот же поток (bridge/win_ble_device.py).
+Если ободок к Windows не подключён, идём напрямую через SDK. Меряет
+сопротивление электродов,
 пишет 30 с с закрытыми и 30 с с открытыми глазами и сверяет сигнал с
 эталоном записей на Mac. Результат: папка на рабочем столе с отчётом,
 сырым сигналом и логом. Эту папку целиком присылают разработке.
@@ -78,6 +81,49 @@ def _resistance_raw(device, seconds: float = 5.0) -> dict:
     return {name: float(getattr(last, name, float("nan"))) for name in CHANNELS}
 
 
+def _resistance_from_stream(device, seconds: float = 3.0) -> dict:
+    """Через Mind Tracker сопротивление приходит само, потоком 7e400005."""
+    from bridge.headband_protocol import RESIST_ORDER
+    time.sleep(seconds)
+    raw = device.last_resist_raw
+    return dict(zip(RESIST_ORDER, map(float, raw))) if raw else {}
+
+
+def _open_headband(log: Log, report: dict):
+    """Сначала ободок, который держит Mind Tracker, затем SDK напрямую."""
+    if sys.platform == "win32":
+        from bridge.win_ble_device import DeviceNotFound as NotViaApp, WinBleHeadbandDevice
+        device = None
+        try:
+            device = WinBleHeadbandDevice(wait_s=5.0)
+        except NotViaApp as error:
+            log(f"   через Mind Tracker: {error}")
+        except Exception as error:
+            report["via_app_error"] = f"{type(error).__name__}: {error}"
+            log(f"   через Mind Tracker не вышло: {error}")
+            raise
+        finally:
+            trace = getattr(device, "trace", None)
+            if trace is None:
+                import bridge.win_ble_device as module
+                trace = module.LAST_TRACE
+            report["via_app_trace"] = list(trace)
+            for line in trace:
+                log(f"   · {line}")
+        if device is not None:
+            report["route"] = "mind_tracker"
+            log("   путь: через Mind Tracker BCI")
+            info = {"Name": device.peripheral_name, "Address": device.address}
+            return device, info, (lambda: _resistance_from_stream(device))
+    log("   путь: напрямую через SDK (Mind Tracker должен быть закрыт)")
+    from bridge.device import BrainBitDevice
+    device = BrainBitDevice(scan_seconds=30.0)
+    report["route"] = "sdk"
+    info = {key: str(getattr(device.info, key, "")) for key in
+            ("Name", "SerialNumber", "Address", "SensFamily", "SensModel")}
+    return device, info, (lambda: _resistance_raw(device))
+
+
 def _record(device, log: Log, phase_s: float) -> tuple[np.ndarray, list[float], list[int], dict]:
     chunks: list[np.ndarray] = []
     arrivals: list[float] = []
@@ -123,33 +169,33 @@ def run(argv: list[str] | None = None) -> int:
         parser.error("отрезок короче 6 с: не набирается эпох для анализа")
     ask = (lambda _text: None) if args.no_wait else input
     out = _output_dir(args.out)
+    report_seed: dict = {}
     log = Log(out / "лог.txt")
     log("Проверка ободка BHS · этап 0 версии 2.0")
     log(f"Windows: {platform.platform()} · Python {platform.python_version()}")
     log(f"Папка с результатом: {out}")
     log()
-    log("Перед началом: закройте Mind Tracker, наденьте ободок, нажмите кнопку на нём.")
-    ask("Когда индикатор ободка мигает, нажмите Enter… ")
+    log(f"Канал через Mind Tracker: {_winrt_status(report_seed)}")
+    log("Перед началом: наденьте ободок, откройте Mind Tracker BCI, подключите в нём")
+    log("ободок и откройте вкладку «Мониторинг». Mind Tracker не закрывайте.")
+    ask("Когда в Mind Tracker идёт сигнал, нажмите Enter… ")
 
-    report: dict = {"started": datetime.now().isoformat(timespec="seconds")}
+    report: dict = {"started": datetime.now().isoformat(timespec="seconds"), **report_seed}
     device = None
     try:
         log("1. Ищу ободок (до 30 с)…")
         if args.fake:
             from bridge.fake_device import FakeDevice
             device = FakeDevice()
+            info, resistance = {"Name": "имитатор"}, (lambda: {})
         else:
-            from bridge.device import BrainBitDevice
-            device = BrainBitDevice(scan_seconds=30.0)
-        info = getattr(device, "info", None)
-        report["device"] = {key: str(getattr(info, key, "")) for key in
-                            ("Name", "SerialNumber", "Address", "SensFamily", "SensModel")}
+            device, info, resistance = _open_headband(log, report)
+        report["device"] = dict(info)
         report["device"]["fs"] = device.fs
         report["device"]["battery"] = _safe(device.battery)
         log(f"   найден: {report['device']}")
 
-        report["resistance_ohm"] = ({} if args.fake
-                                    else _safe(lambda: _resistance_raw(device)))
+        report["resistance_ohm"] = _safe(resistance)
         log(f"   сопротивление, Ом: {report['resistance_ohm']}")
 
         signal, arrivals, sizes, marks = _record(device, log, args.phase)
@@ -194,6 +240,22 @@ def run(argv: list[str] | None = None) -> int:
     log(f"Пришлите разработке папку целиком: {out}")
     ask("Нажмите Enter, чтобы закрыть окно… ")
     return 0 if passed else 1
+
+
+def _winrt_status(report: dict) -> str:
+    """Есть ли в сборке WinRT: без него путь через Mind Tracker не работает."""
+    if sys.platform != "win32":
+        report["winrt"] = "не Windows"
+        return "только на Windows"
+    try:
+        import bridge.win_ble_device  # noqa: F401
+        import winrt.windows.devices.bluetooth.genericattributeprofile  # noqa: F401
+        import winrt.windows.devices.enumeration  # noqa: F401
+        report["winrt"] = True
+        return "есть"
+    except Exception as error:
+        report["winrt"] = f"нет: {error}"
+        return f"нет ({error})"
 
 
 def _safe(fn):

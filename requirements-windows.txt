@@ -7,6 +7,14 @@ uvicorn==0.34.0
 websockets==14.1
 pyneurosdk2==1.0.15
 reportlab==4.2.5
+# канал через Mind Tracker на Windows: системный Bluetooth (WinRT)
+winrt-runtime==3.2.1; sys_platform == "win32"
+winrt-Windows.Devices.Bluetooth==3.2.1; sys_platform == "win32"
+winrt-Windows.Devices.Bluetooth.GenericAttributeProfile==3.2.1; sys_platform == "win32"
+winrt-Windows.Devices.Enumeration==3.2.1; sys_platform == "win32"
+winrt-Windows.Foundation==3.2.1; sys_platform == "win32"
+winrt-Windows.Foundation.Collections==3.2.1; sys_platform == "win32"
+winrt-Windows.Storage.Streams==3.2.1; sys_platform == "win32"
 # окно версии 2.0 (WebView2 на Windows, WebKit на Mac)
 pywebview==6.2.1
 pyinstaller>=6.11,<7
