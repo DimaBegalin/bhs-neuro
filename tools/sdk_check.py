@@ -116,12 +116,24 @@ def _open_headband(log: Log, report: dict):
             info = {"Name": device.peripheral_name, "Address": device.address}
             return device, info, (lambda: _resistance_from_stream(device))
     log("   путь: напрямую через SDK (Mind Tracker должен быть закрыт)")
-    from bridge.device import BrainBitDevice
-    device = BrainBitDevice(scan_seconds=30.0)
-    report["route"] = "sdk"
+    from app.device.base import DeviceNotFound as NotFound
+    from app.device.sdk import SdkDevice
+    try:
+        device = SdkDevice(scan_seconds=30.0)
+    except NotFound as error:
+        raise RuntimeError(str(error)) from error
     info = {key: str(getattr(device.info, key, "")) for key in
             ("Name", "SerialNumber", "Address", "SensFamily", "SensModel")}
-    return device, info, (lambda: _resistance_raw(device))
+    report["route"] = device.source
+    report["raw_trace"] = device.raw_trace
+    for line in device.raw_trace:
+        log(f"   · {line}")
+    if device.raw is not None:
+        log("   сигнал разбираем сами: SDK запускает поток, пакеты читаем напрямую")
+        return device, info, (lambda: _resistance_from_stream(device.raw))
+    report["raw_error"] = device.raw_error
+    log(f"   сырые пакеты недоступны ({device.raw_error}), сигнал от SDK")
+    return device, info, (lambda: _resistance_raw(device._device))
 
 
 def _record(device, log: Log, phase_s: float) -> tuple[np.ndarray, list[float], list[int], dict]:
