@@ -2,8 +2,15 @@
 from __future__ import annotations
 
 import json
+import ssl
 import urllib.error
 import urllib.request
+
+import certifi
+
+# Python с python.org в сборке для Mac не видит системные сертификаты: без
+# своего набора каждый HTTPS-запрос падал и выглядел как «нет интернета».
+SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
 
 
 class Offline(RuntimeError):
@@ -23,7 +30,7 @@ def request(url: str, method: str = "GET", body=None, headers: dict | None = Non
     req = urllib.request.Request(url, data=data, method=method, headers={
         "Content-Type": "application/json", **(headers or {})})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as response:
+        with urllib.request.urlopen(req, timeout=timeout, context=SSL_CONTEXT) as response:
             raw = response.read().decode("utf-8")
     except urllib.error.HTTPError as error:
         raise HttpError(error.code, error.read().decode("utf-8", "replace")) from error

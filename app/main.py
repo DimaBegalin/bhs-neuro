@@ -22,7 +22,7 @@ from app import __version__
 from app.api import Api
 from app.device.link import DeviceLink
 from app.session.session import SessionStore
-from app.storage import BUNDLE_ROOT, PROJECT_ROOT, logs_dir, sessions_dir
+from app.storage import BUNDLE_ROOT, FROZEN, PROJECT_ROOT, logs_dir, sessions_dir
 
 UI_INDEX = BUNDLE_ROOT / "app" / "ui" / "index.html"
 RECORDINGS = (PROJECT_ROOT / "сборка" / "Нейропрофориентация BHS" / "data", PROJECT_ROOT / "data")
@@ -179,7 +179,8 @@ def _hard_exit(code: int) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Профориентация BHS с нейромониторингом")
     parser.add_argument("--device", choices=("auto", "sdk", "ble", "replay", "sim"),
-                        default="sdk" if sys.platform == "win32" else "replay")
+                        # собранное Mac-приложение без записей: живой ободок через Mind Tracker
+                        default="sdk" if sys.platform == "win32" else "ble" if FROZEN else "replay")
     parser.add_argument("--replay", type=Path, default=None, help="запись .npz для проигрывателя")
     parser.add_argument("--speed", type=float, default=1.0, help="ускорение проигрывателя и имитатора")
     parser.add_argument("--manager", default="", help="имя менеджера до появления входа (этап 4)")

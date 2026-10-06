@@ -135,6 +135,8 @@ gh run download <id> -n BHS-Profor-Windows-x64 -D dist/profor
 5. Установщик Inno Setup (`windows/BHS-Profor.iss`).
 6. Контрольные суммы.
 
+Mac (Apple Silicon) собирается локально: `.venv/bin/python tools/build_mac.py` → `dist/BHS-Profor-<версия>-mac-arm64.dmg`. Ободок там только через Mind Tracker (`--device ble` по умолчанию), подписи нет: первый запуск — правый клик → «Открыть».
+
 Настройки облака берутся из секретов репозитория `SUPABASE_URL` и `SUPABASE_ANON_KEY`. Версия хранится в `app/__init__.py`, сейчас 2.0.0.
 
 ## Тесты и проверка
