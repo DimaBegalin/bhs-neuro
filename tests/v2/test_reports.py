@@ -22,7 +22,7 @@ def _walk(value):
 
 def test_no_banned_wording_in_any_report_or_content_text():
     texts = list(_walk(T)) + list(_walk(NEXT_STEPS))
-    for name in ("interests", "cards", "bigfive", "spatial", "subjects"):
+    for name in ("interests", "cards", "bigfive", "spatial", "numeric", "verbal", "subjects"):
         texts += list(_walk(content.load(name)))
     for text in texts:
         low = text.lower()
@@ -46,10 +46,15 @@ def _result(level="bright", top=("engineering", "it", "science"), flags=(), lang
             "recommendation": {"clusters": clusters, "top": list(top) if level != "flat" else []},
             "spatial": {"total": 12, "correct": 11, "share": 0.92, "level": "strong", "timeouts": 0,
                         "median_rt_ms": 5000, "chance": 0.5},
+            "numeric": {"total": 10, "correct": 6, "share": 0.6, "level": "middle", "timeouts": 1,
+                        "median_rt_ms": 20000, "chance": 0.25},
+            "verbal": {"total": 10, "correct": 3, "share": 0.3, "level": "zone", "timeouts": 0,
+                       "median_rt_ms": 15000, "chance": 0.25},
+            "card_shares": {"R": 0.8, "I": 0.6, "A": 0.4, "S": 0.4, "E": 0.4, "C": 0.4},
             "work_style": {"scores": {"E": 40, "A": 55, "C": 80, "N": 30, "I": 60}, "stability": 70, "answered": {}},
             "subjects": ["math"], "cards": [], "flags": list(flags),
             "discrepancies": [{"type": "A", "questionnaire": "low", "cards": "yes"}],
-            "attention_discrepancies": [], "monitoring": None}
+            "monitoring": None}
 
 
 META = {"id": "s1", "student": {"name": "Тест Ученик", "grade": 9, "lang": "ru"},

@@ -42,12 +42,15 @@ def render_parent_html(model: dict) -> str:
             parts.append(f"<h3>{i}. {escape(c['title'])}</h3><p>{escape(', '.join(c['professions']) or '—')}</p>")
     else:
         parts.append(f"<p>{escape(t['no_clusters'])}</p>")
+    if model.get("abilities"):
+        parts.append(f"<h2>{escape(t['abilities_title'])}</h2><p class='muted'>{escape(t['abilities_note'])}</p>")
+        parts += [f"<p><b>{escape(a['title'])}</b>: {escape(a['text'])}</p>" for a in model["abilities"]]
     if model.get("style"):
         parts.append(f"<h2>{escape(t['style_title'])}</h2><p class='muted'>{escape(t['style_note'])}</p>")
         parts += [_bar(r["name"], r["score"]) for r in model["style"]]
     parts.append(f"<h2>{escape(t['neuro_title'])}</h2>")
     if model.get("neuro"):
-        parts.append(f"<span class='badge'>{escape(model['neuro']['badge'])}</span><p>{escape(model['neuro']['attention'])}</p>")
+        parts.append(f"<span class='badge'>{escape(model['neuro']['badge'])}</span><p>{escape(model['neuro']['text'])}</p>")
     else:
         parts.append(f"<p class='muted'>{escape(t['neuro_none'])}</p>")
     parts.append(f"<h2>{escape(t['how_title'])}</h2><ul>" + "".join(f"<li>{escape(x)}</li>" for x in t["how_items"]) + "</ul>")

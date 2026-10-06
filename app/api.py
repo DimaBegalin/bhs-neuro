@@ -99,8 +99,9 @@ class Api:
     def session_content(self) -> dict:
         """Содержимое батареи на языке ученика в порядке этой сессии.
 
-        Порядок утверждений и карточек перемешивается по id сессии: у разных
-        учеников он разный, у одной сессии — воспроизводимый.
+        Порядок утверждений, пар карточек и сторона карточки в паре
+        перемешиваются по id сессии: у разных учеников порядок разный, у одной
+        сессии — воспроизводимый.
         """
         session = self._session
         if session is None:
@@ -108,10 +109,12 @@ class Api:
         data = content.for_window(session.meta["student"]["lang"])
         rng = random.Random(session.id)
         rng.shuffle(data["interests"]["items"])
-        rng.shuffle(data["cards"])
+        rng.shuffle(data["card_pairs"])
+        for pair in data["card_pairs"]:
+            rng.shuffle(pair)
         session.mark("content_order", {
             "interests": [i["id"] for i in data["interests"]["items"]],
-            "cards": [c["id"] for c in data["cards"]],
+            "card_pairs": data["card_pairs"],
         })
         return data
 

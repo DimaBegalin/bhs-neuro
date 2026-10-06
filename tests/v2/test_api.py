@@ -16,9 +16,7 @@ STUDENT = {"name": "  Айгерим   Нурланова ", "grade": 9, "lang":
 def _api(tmp_path, speed=20.0):
     sim = SimDevice(speed=speed)
     link = DeviceLink(lambda: sim)
-    api = Api(link, SessionStore(tmp_path / "sessions"), manager="Тест Менеджер",
-              dev_controls={"on:background_closed_start": lambda _p: setattr(sim, "eyes_closed", True),
-                            "on:background_open_start": lambda _p: setattr(sim, "eyes_closed", False)})
+    api = Api(link, SessionStore(tmp_path / "sessions"), manager="Тест Менеджер")
     return api, link
 
 
@@ -27,11 +25,9 @@ def test_full_session_with_headband(tmp_path):
     api.device_connect()
     assert wait_until(lambda: api.device_state()["state"] == "streaming")
     started = api.session_start({**STUDENT, "with_headband": True})
-    assert [m["id"] for m in started["plan"]][:3] == ["background", "interests", "cards"]
-    api.session_mark("background_closed_start")
-    time.sleep(0.5)
-    api.session_mark("background_open_start")
-    time.sleep(0.5)
+    # минуты фона в начале больше нет: сразу интересы
+    assert [m["id"] for m in started["plan"]][:2] == ["interests", "cards"]
+    time.sleep(1.0)
     done = api.session_finish()
     assert done["status"] == "finished" and done["samples"] > 0
     folder = tmp_path / "sessions" / started["id"]
@@ -50,7 +46,6 @@ def test_without_headband_needs_no_device(tmp_path):
     api, _ = _api(tmp_path)
     started = api.session_start({**STUDENT, "with_headband": False})
     assert started["with_headband"] is False
-    assert "background" not in [m["id"] for m in started["plan"]]
     assert api.session_finish()["status"] == "finished"
 
 

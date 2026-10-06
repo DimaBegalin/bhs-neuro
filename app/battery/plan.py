@@ -1,8 +1,10 @@
 """Состав батареи экспресс-режима.
 
-Порядок из документа «Методология 2.0»: фон, интересы (пока ученик не
-устал), карточки, пространственные задачи, стиль работы (Mini-IPIP), предметы. Фон нужен только
-с ободком; карточки остаются и без него — их оценки тоже самоотчёт.
+Порядок из документа «Методология 2.0»: интересы (пока ученик не устал),
+карточки парами, задания (вращение, числа, слова), стиль работы (Mini-IPIP),
+предметы. Минуту фона в начале убрали 06.10.2026: тест был слишком долгим.
+Задания на числа и слова добавлены тогда же: способности проверяются делом,
+а не вопросами.
 """
 from __future__ import annotations
 
@@ -18,10 +20,11 @@ class Module:
 
 
 EXPRESS: tuple[Module, ...] = (
-    Module("background", {"closed_s": 30, "open_s": 30}, needs_headband=True),
     Module("interests"),
-    Module("cards", {"show_s": 10, "rest_s": 1.5}),
+    Module("cards"),
     Module("spatial", content="spatial"),
+    Module("numeric", content="numeric"),
+    Module("verbal", content="verbal"),
     Module("bigfive", content="bigfive"),
     Module("context"),
 )

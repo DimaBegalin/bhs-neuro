@@ -20,8 +20,8 @@ app/session/
   session.py         Student, Session, SessionStore (папки сессий, восстановление оборванных)
   result.py          итог сессии → result.json (пересчитывается из сырых файлов в любой момент)
 app/battery/plan.py  состав и порядок модулей экспресс-режима, --fast
-app/content/         содержимое батареи (JSON): interests, cards, spatial, bigfive, subjects, occupations
-app/scoring/         расчёт рекомендации (без ЭЭГ): interests, match (сходство и кластеры), spatial, bigfive, validity
+app/content/         содержимое батареи (JSON): interests, cards (+ пары), spatial, numeric, verbal, bigfive, subjects, occupations
+app/scoring/         расчёт рекомендации (без ЭЭГ): interests, match (сходство и кластеры), tasks (блоки заданий), bigfive, validity
 app/eeg/             signal_check.py (утилита этапа 0), monitoring.py (нейромониторинг сессии)
 app/report/          texts.py (все тексты отчётов ru/kk + запрещённые слова), model.py (саммари и модель),
                      pdf.py (reportlab, шрифт DejaVu), html.py (для облака), __init__.py (make_reports, комментарий)
@@ -37,10 +37,9 @@ app/pilot.py         разбор пилота (tools/v2/pilot_report.py)
 2. **Ободок:** экран подключения. Качество каналов считается в `DeviceLink`.
 3. **Согласие ученика:** экран. Согласие родителя — бумажное, вне приложения.
 4. **Модули батареи** (`plan.py`), по порядку:
-   - фон — только с ободком;
    - интересы;
-   - карточки;
-   - вращение;
+   - карточки парами «что интереснее» (15 пар);
+   - задания: вращение, числа, слова — один общий экран `tasks()` в `app.js`;
    - стиль работы;
    - предметы.
 5. **Завершение:** `session_finish` → `build_result` → `make_reports` → постановка в очередь облака. Экран итога показывает саммари и поле комментария профориентолога.
@@ -67,13 +66,11 @@ app/pilot.py         разбор пилота (tools/v2/pilot_report.py)
 | --- | --- |
 | `session_start` | — |
 | `module_start` / `module_end` | `{module}` |
-| `background_closed_start` / `_end` | — |
-| `background_open_start` / `_end` | — |
 | `content_order` | порядок пунктов и карточек |
 | `interest_answer` | `{item, value 1–5, rt_ms}` |
-| `card_show` / `card_hide` | `{card}` |
-| `card_rating` | `{card, liked, rt_ms}` |
+| `card_choice` | `{pair: [id, id], chosen, rt_ms}` |
 | `spatial_answer` | `{item, choice: same/mirror/null, rt_ms}` |
+| `numeric_answer`, `verbal_answer` | `{item, choice: номер варианта/null, rt_ms}` |
 | `bigfive_answer` | `{item, value, rt_ms}` |
 | `context_subjects` | `{subjects}` |
 | `session_end` | — |
@@ -85,8 +82,10 @@ app/pilot.py         разбор пилота (tools/v2/pilot_report.py)
 | Модуль | Файл | Источник | Лицензия |
 | --- | --- | --- | --- |
 | Интересы, 30 пунктов | `interests.json` | IIP RIASEC Markers, набор A | бесплатно только некоммерчески |
-| Карточки, 12 | `cards.json`, `ui/cards/*.svg` | свои, временные иллюстрации | свои |
+| Карточки, 12 в 15 парах | `cards.json`, `ui/cards/*.svg` | свои, временные иллюстрации | свои |
 | Вращение, 12 | `spatial.json`, `ui/spatial/*.jpg` | стимулы Ganis & Kievit 2015 | CC BY 4.0 |
+| Числовая логика, 10 | `numeric.json` | свои задания: ряды, пропорции, проценты | свои |
+| Словесная логика, 10 | `verbal.json` | свои задания: аналогии, лишнее слово, выводы | свои |
 | Стиль работы, 20 | `bigfive.json` | Mini-IPIP | public domain |
 | Профессии, 109 в 12 кластерах | `occupations.json` | O*NET 31.0 | CC BY 4.0, атрибуция в отчёте |
 
@@ -101,8 +100,10 @@ app/pilot.py         разбор пилота (tools/v2/pilot_report.py)
 | Выраженность профиля | `scoring/interests.py` | ярко ≥ 40, умеренно ≥ 20, все баллы ниже 30 — «не выражены» |
 | Сходство с профессией | `scoring/match.py` | ≥ 0,3; балл кластера — среднее трёх ближайших профессий |
 | Задачи на вращение | `content/spatial.json` | сильная сторона ≥ 84%, зона развития ≤ 59%, шанс угадать 50% |
+| Числа и слова | `content/numeric.json`, `verbal.json` | сильная сторона ≥ 80%, зона развития ≤ 40%, шанс угадать 25%. На кластеры не влияют |
+| Карточки | `scoring/validity.py` | тип в 5 парах; расхождение — выбран ≤ 1 раза при высоком интересе или ≥ 4 раз при низком |
 | Флаги достоверности | `scoring/validity.py` | медиана ответа < 1 с; 10 одинаковых ответов подряд; расхождения по 3 и более типам; наугад |
-| ЭЭГ | `eeg/monitoring.py`, `eeg/signal_check.py` | реакция альфы ≥ 1,2; ≥ 9 из 12 карточек с ≥ 4 чистыми эпохами; качество модуля ≥ 0,6 |
+| ЭЭГ | `eeg/monitoring.py` | качество модуля ≥ 0,6; усталость — рост θ/α к концу ≥ 30%. Фона в начале нет (убран 06.10.2026), внимание к карточкам не считается |
 | Качество канала | `device/link.py` | 2–100 мкВ — «хороший» |
 
 Если пороги поменялись, `build_result(folder)` и `make_reports(folder)` пересчитывают итог старой сессии.

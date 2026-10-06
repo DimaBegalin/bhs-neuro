@@ -1,7 +1,7 @@
 """Содержимое батареи: утверждения, карточки, задачи, предметы, профессии.
 
 Файлы JSON лежат рядом. Окну отдаётся только то, что нужно для показа:
-ключи ответов пространственных задач остаются в Python.
+ключи ответов заданий остаются в Python.
 """
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from app.scoring.match import Occupation
+from app.scoring.tasks import BLOCKS
 
 CONTENT_DIR = Path(__file__).resolve().parent
 
@@ -36,10 +37,11 @@ def card_types() -> dict[str, str]:
     return {c["id"]: c["type"] for c in load("cards")["cards"]}
 
 
-def spatial_key() -> dict[str, str]:
-    if not available("spatial"):
+def task_key(block: str) -> dict:
+    """id задания → верный ответ: значение варианта у вращения, номер варианта у остальных."""
+    if not available(block):
         return {}
-    return {i["id"]: i["answer"] for i in load("spatial")["items"]}
+    return {i["id"]: i["answer"] for i in load(block)["items"]}
 
 
 def for_window(lang: str) -> dict:
@@ -56,17 +58,13 @@ def for_window(lang: str) -> dict:
             "items": [{"id": i["id"], "text": text(i["text"])} for i in interests["items"]],
         },
         "cards": [{"id": c["id"], "image": c["image"], "text": text(c["text"])} for c in cards["cards"]],
+        "card_pairs": [list(pair) for pair in cards["pairs"]],
         "subjects": [{"id": s["id"], "text": text(s["text"])} for s in subjects["subjects"]],
         "max_subjects": subjects["max_choice"],
     }
-    if available("spatial"):
-        spatial = load("spatial")
-        data["spatial"] = {
-            "instruction": text(spatial["instruction"]),
-            "time_limit_s": spatial["time_limit_s"],
-            "options": [{"value": o["value"], "label": text(o["label"])} for o in spatial["options"]],
-            "items": [{"id": i["id"], "image": i["image"]} for i in spatial["items"]],
-        }
+    for block in BLOCKS:
+        if available(block):
+            data[block] = _task_block(load(block), text)
     if available("bigfive"):
         bigfive = load("bigfive")
         data["bigfive"] = {
@@ -77,9 +75,32 @@ def for_window(lang: str) -> dict:
     return data
 
 
-def spatial_rules() -> dict:
-    """Шанс угадать и пороги уровней пространственного блока."""
-    if not available("spatial"):
+def _task_block(data: dict, text) -> dict:
+    """Блок заданий для окна: картинка или текст, варианты общие (вращение) или свои у задания."""
+    def options(raw) -> list[dict]:
+        labels = text(raw) if isinstance(raw, dict) else raw
+        return [{"value": i, "label": label} for i, label in enumerate(labels)]
+
+    items = []
+    for item in data["items"]:
+        shown = {"id": item["id"]}
+        if "image" in item:
+            shown["image"] = item["image"]
+        if "text" in item:
+            shown["text"] = text(item["text"])
+        if "options" in item:
+            shown["options"] = options(item["options"])
+        items.append(shown)
+    block = {"title": text(data["title"]), "instruction": text(data["instruction"]),
+             "time_limit_s": data["time_limit_s"], "items": items}
+    if "options" in data:
+        block["options"] = [{"value": o["value"], "label": text(o["label"])} for o in data["options"]]
+    return block
+
+
+def task_rules(block: str) -> dict:
+    """Шанс угадать и пороги уровней блока заданий."""
+    if not available(block):
         return {}
-    data = load("spatial")
+    data = load(block)
     return {k: data[k] for k in ("chance", "strong_share", "weak_share")}

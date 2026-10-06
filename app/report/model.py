@@ -8,7 +8,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from app.report.texts import (LEVEL, NEXT_STEPS, SPATIAL, STYLE, STYLE_STRENGTH, T, TYPES, tr)
+from app.report.texts import (ABILITY, LEVEL, NEXT_STEPS, STYLE, STYLE_STRENGTH, T, TYPES, tr)
+from app.scoring.tasks import BLOCKS
 
 STYLE_STRONG = 60.0
 MAX_DISCREPANCIES = 2
@@ -43,12 +44,17 @@ def build_summary(result: dict, lang: str) -> list[dict]:
             clusters=", ".join(clusters[c]["title"][lang] for c in rec["top"]))
 
     # 2. Сильная сторона сейчас
-    strengths, growth = [], []
-    spatial = result.get("spatial") or {}
-    if spatial.get("level") in ("strong", "middle"):
-        strengths.append(SPATIAL[spatial["level"]][lang])
-    elif spatial.get("level") == "zone":
-        growth.append(SPATIAL["zone"][lang])
+    strengths, growth, middle = [], [], []
+    for block in BLOCKS:
+        level = (result.get(block) or {}).get("level")
+        if level == "strong":
+            strengths.append(ABILITY[block]["strong"][lang])
+        elif level == "zone":
+            growth.append(ABILITY[block]["zone"][lang])
+        elif level == "middle":
+            middle.append(ABILITY[block]["name"][lang])
+    if middle and not strengths:
+        strengths.append(tr(T, "abilities_middle", lang).format(names=", ".join(middle)))
     style = _style_scores(result.get("work_style"))
     if style:
         best = max(style, key=style.get)
@@ -64,9 +70,6 @@ def build_summary(result: dict, lang: str) -> list[dict]:
     for d in result.get("discrepancies", [])[:MAX_DISCREPANCIES]:
         key = "disc_high_no" if d["questionnaire"] == "high" else "disc_low_yes"
         gaps.append(tr(T, key, lang).format(type=_type_name(d["type"], lang)))
-    for d in result.get("attention_discrepancies", [])[:1]:
-        how = tr(T, "attention_higher" if d["attention"] == "high" else "attention_lower", lang)
-        gaps.append(tr(T, "disc_attention", lang).format(type=_type_name(d["type"], lang), how=how))
     gap = " ".join(gaps) or tr(T, "no_discrepancy", lang)
 
     # 4. Состояние на тесте
@@ -102,17 +105,9 @@ def build_model(result: dict, meta: dict) -> dict:
     student = meta.get("student") or {}
     rec = result["recommendation"]
     by_id = {c["cluster"]: c for c in rec["clusters"]}
-    monitoring = result.get("monitoring")
     neuro = None
     if meta.get("with_headband"):
-        cards = (monitoring or {}).get("cards") or {}
-        if cards.get("shown"):
-            top = ", ".join(_type_name(t, lang).lower() for t in cards["type_order"][:2])
-            attention = tr(T, "neuro_attention", lang).format(types=top)
-        else:
-            attention = tr(T, "neuro_hidden", lang).format(
-                reason=cards.get("reason") or "нет данных")
-        neuro = {"badge": tr(T, "neuro_badge", lang), "attention": attention}
+        neuro = {"badge": tr(T, "neuro_badge", lang), "text": tr(T, "neuro_recorded", lang)}
     started = meta.get("started_at") or ""
     try:
         date = datetime.fromisoformat(started).strftime("%d.%m.%Y")
@@ -135,7 +130,9 @@ def build_model(result: dict, meta: dict) -> dict:
         "clusters": [{"title": by_id[c]["title"][lang], "score": by_id[c]["score"],
                       "professions": [p["title"].get(lang) or p["title"]["ru"] for p in by_id[c]["professions"]]}
                      for c in rec["top"]],
-        "spatial": result.get("spatial"),
+        "abilities": [{"block": b, "title": ABILITY[b]["title"][lang],
+                       "text": tr(T, "correct_of", lang).format(correct=result[b]["correct"], total=result[b]["total"])}
+                      for b in BLOCKS if (result.get(b) or {}).get("total")],
         "style": ([{"name": STYLE[k][lang], "score": v} for k, v in style.items()] if style else None),
         "neuro": neuro,
         "result": result,  # для технического отчёта

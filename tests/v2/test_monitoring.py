@@ -3,57 +3,50 @@ import numpy as np
 from app.eeg.monitoring import monitoring
 
 FS = 250
-TYPES = ["R", "I", "A", "S", "E", "C"]
 
 
-def build(reactive: bool = True, seed: int = 0):
-    """Фон 30+30 с, затем 12 карточек по 10 с: у карточек типа A альфа подавлена сильнее."""
+def build(noisy_module: str | None = None, minutes: float = 3.0, tired: bool = False, seed: int = 0):
+    """Три модуля подряд без фона; noisy_module — с движениями, tired — альфа гаснет, тета растёт."""
     rng = np.random.default_rng(seed)
-    parts, events, cursor = [], [], 0
-
-    def add(seconds, alpha_uv, kind=None, payload=None, end_kind=None):
-        nonlocal cursor
-        n = int(seconds * FS)
-        t = (cursor + np.arange(n)) / FS
-        chunk = rng.normal(0, 10, (4, n))
-        chunk[2:] += alpha_uv * np.sin(2 * np.pi * 10 * t)
-        if kind:
-            events.append({"kind": kind, "sample": cursor, "payload": payload or {}})
-        parts.append(chunk)
-        cursor += n
-        if end_kind:
-            events.append({"kind": end_kind, "sample": cursor, "payload": payload or {}})
-
-    add(30, 30 if reactive else 15, "background_closed_start", end_kind="background_closed_end")
-    add(30, 15, "background_open_start", end_kind="background_open_end")
-    events.append({"kind": "module_start", "sample": cursor, "payload": {"module": "cards"}})
-    card_types = {}
-    for i, kind in enumerate(TYPES * 2):
-        card = f"{kind}{i // 6 + 1}"
-        card_types[card] = kind
-        add(10, 4 if kind == "A" else 12, "card_show", {"card": card})
-    events.append({"kind": "module_end", "sample": cursor, "payload": {"module": "cards"}})
-    events.append({"kind": "session_end", "sample": cursor, "payload": {}})
-    return np.concatenate(parts, axis=1), events, card_types
+    names = ["interests", "cards", "spatial"]
+    n = int(minutes * 60 * FS)
+    t = np.arange(n) / FS
+    signal = rng.normal(0, 8, (4, n))
+    fade = np.linspace(1.0, 0.3, n) if tired else np.ones(n)
+    signal[2:] += 15 * fade * np.sin(2 * np.pi * 10 * t)
+    signal[2:] += 15 * (1.3 - fade) * np.sin(2 * np.pi * 5.5 * t) if tired else 0
+    events, step = [], n // len(names)
+    for i, name in enumerate(names):
+        a, b = i * step, (i + 1) * step
+        if name == noisy_module:
+            signal[:, a:b] += rng.normal(0, 400, (4, b - a))
+        events += [{"kind": "module_start", "sample": a, "payload": {"module": name}},
+                   {"kind": "module_end", "sample": b, "payload": {"module": name}}]
+    events.append({"kind": "session_end", "sample": n, "payload": {}})
+    return signal, events
 
 
-def test_card_attention_ranks_the_suppressed_type_first():
-    signal, events, card_types = build()
-    m = monitoring(signal, FS, events, card_types)
-    assert m["background"]["reactive"]
-    assert m["cards"]["shown"] and m["cards"]["valid"] == 12
-    assert m["cards"]["type_order"][0] == "A"
-    assert m["modules"]["cards"]["quality"] > 0.9
-    assert not m["state"]["movement"]
+def test_quality_per_module_and_no_background_needed():
+    signal, events = build()
+    m = monitoring(signal, FS, events)
+    assert set(m["modules"]) == {"interests", "cards", "spatial"}
+    assert all(v["quality"] >= 0.6 for v in m["modules"].values())
+    assert m["state"]["movement"] is False
 
 
-def test_card_attention_hidden_without_alpha_reactivity():
-    signal, events, card_types = build(reactive=False)
-    m = monitoring(signal, FS, events, card_types)
-    assert not m["background"]["reactive"]
-    assert m["cards"]["shown"] is False and "не реагирует" in m["cards"]["reason"]
+def test_noisy_module_flags_movement():
+    signal, events = build(noisy_module="cards")
+    m = monitoring(signal, FS, events)
+    assert m["modules"]["cards"]["quality"] < 0.6
+    assert m["state"]["movement"] is True
 
 
-def test_missing_background_is_reported():
-    m = monitoring(np.zeros((4, 1000)), FS, [], {})
-    assert m["background"] == {"ok": False, "reason": "нет фона"}
+def test_fatigue_signs_when_alpha_fades():
+    signal, events = build(tired=True, minutes=6)
+    m = monitoring(signal, FS, events)
+    assert m["state"]["theta_alpha_change"] > 0.3 and m["state"]["fatigue_signs"]
+
+
+def test_empty_recording():
+    m = monitoring(np.zeros((4, 1000)), FS, [])
+    assert m == {"modules": {}, "state": {"movement": False, "theta_alpha_change": None, "fatigue_signs": False}}

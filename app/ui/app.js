@@ -375,24 +375,6 @@ function showStudentDone() {
 }
 
 const MODULES = {
-  background: async (params) => {
-    await new Promise((resolve) => mount(h("div", { class: "stage-screen" },
-      h("h1", {}, t("bg_intro_title")), h("p", {}, t("bg_intro_text")),
-      h("button", { class: "primary big", onclick: resolve }, t("bg_start")))));
-    beep(520);
-    await call("session_mark", "background_closed_start", {});
-    const timer = h("div", { class: "timer" });
-    mount(h("div", { class: "stage-screen" }, h("h1", {}, t("bg_closed")), h("p", {}, t("bg_closed_hint")), timer));
-    await countdown(params.closed_s, timer);
-    await call("session_mark", "background_closed_end", {});
-    beep(880);
-    await call("session_mark", "background_open_start", {});
-    mount(h("div", { class: "stage-screen" }, h("div", { class: "cross" }, "+"), h("p", {}, t("bg_open_hint"))));
-    await sleep(params.open_s * 1000);
-    await call("session_mark", "background_open_end", {});
-    beep(660, 200);
-  },
-
   interests: () => likert(ctx.content.interests.items, ctx.content.interests.scale,
                           t("interests_question"), "interest_answer"),
 
@@ -404,60 +386,29 @@ const MODULES = {
                  "bigfive_answer");
   },
 
-  cards: async (params) => {
-    const cards = ctx.content.cards;
+  cards: async () => {
+    const byId = Object.fromEntries(ctx.content.cards.map((card) => [card.id, card]));
+    const pairs = ctx.content.card_pairs;
     await new Promise((resolve) => mount(h("div", { class: "stage-screen" },
       h("h1", {}, t("cards_intro_title")), h("p", {}, t("cards_intro_text")),
       h("button", { class: "primary big", onclick: resolve }, t("start")))));
-    for (let i = 0; i < cards.length; i++) {
-      const card = cards[i];
-      mount(h("div", { class: "stage-screen" }, h("div", { class: "cross" }, "+")));
-      await sleep(params.rest_s * 1000);
-      mount(h("div", { class: "stage-screen card-show" },
-        h("img", { src: card.image, alt: "" }), h("h1", {}, card.text)));
-      await call("session_mark", "card_show", { card: card.id });
-      await sleep(params.show_s * 1000);
-      await call("session_mark", "card_hide", { card: card.id });
+    for (let i = 0; i < pairs.length; i++) {
+      const pair = pairs[i];
       const shownAt = performance.now();
-      const liked = await new Promise((done) => mount(h("div", { class: "stage-screen" },
-        progress(i, cards.length),
-        h("h1", {}, card.text), h("p", {}, t("cards_question")),
-        h("div", { class: "row" },
-          h("button", { class: "big", onclick: () => done(false) }, t("no")),
-          h("button", { class: "primary big", onclick: () => done(true) }, t("yes"))))));
-      await call("session_mark", "card_rating",
-                 { card: card.id, liked, rt_ms: Math.round(performance.now() - shownAt) });
+      const chosen = await new Promise((done) => mount(h("div", { class: "stage-screen" },
+        progress(i, pairs.length),
+        h("h1", {}, t("cards_question")),
+        h("div", { class: "pair" }, ...pair.map((id) =>
+          h("button", { class: "choice-card", onclick: () => done(id) },
+            h("img", { src: byId[id].image, alt: "" }), h("span", {}, byId[id].text)))))));
+      await call("session_mark", "card_choice",
+                 { pair, chosen, rt_ms: Math.round(performance.now() - shownAt) });
     }
   },
 
-  spatial: async () => {
-    const { instruction, time_limit_s: limit, items, options } = ctx.content.spatial;
-    await new Promise((resolve) => mount(h("div", { class: "stage-screen" },
-      h("h1", {}, t("spatial_intro_title")), h("p", {}, instruction),
-      h("button", { class: "primary big", onclick: resolve }, t("start")))));
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      const shownAt = performance.now();
-      const timer = h("div", { class: "timer" });
-      const choice = await new Promise((done) => {
-        let left = limit;
-        timer.textContent = `${left}`;
-        const tick = setInterval(() => {
-          left -= 1;
-          timer.textContent = `${Math.max(left, 0)}`;
-          if (left <= 0) { clearInterval(tick); done(null); }
-        }, 1000);
-        mount(h("div", { class: "stage-screen spatial" },
-          progress(i, items.length),
-          h("img", { src: item.image, alt: "" }),
-          h("div", { class: "row" }, ...options.map((option) =>
-            h("button", { class: "big", onclick: () => { clearInterval(tick); done(option.value); } }, option.label))),
-          timer));
-      });
-      await call("session_mark", "spatial_answer",
-                 { item: item.id, choice, rt_ms: choice === null ? null : Math.round(performance.now() - shownAt) });
-    }
-  },
+  spatial: () => tasks("spatial"),
+  numeric: () => tasks("numeric"),
+  verbal: () => tasks("verbal"),
 
   context: async () => {
     const chosen = new Set();
@@ -478,6 +429,36 @@ const MODULES = {
 };
 
 // Утверждение на экране, шкала из 5 кнопок, клавиши 1–5, можно вернуться.
+async function tasks(name) {
+  const block = ctx.content[name];
+  await new Promise((resolve) => mount(h("div", { class: "stage-screen" },
+    h("h1", {}, block.title), h("p", {}, block.instruction),
+    h("button", { class: "primary big", onclick: resolve }, t("start")))));
+  for (let i = 0; i < block.items.length; i++) {
+    const item = block.items[i];
+    const options = item.options || block.options;
+    const shownAt = performance.now();
+    const timer = h("div", { class: "timer" });
+    const choice = await new Promise((done) => {
+      let left = block.time_limit_s;
+      timer.textContent = `${left}`;
+      const tick = setInterval(() => {
+        left -= 1;
+        timer.textContent = `${Math.max(left, 0)}`;
+        if (left <= 0) { clearInterval(tick); done(null); }
+      }, 1000);
+      mount(h("div", { class: `stage-screen task ${name}`, "data-block": name },
+        progress(i, block.items.length),
+        item.image ? h("img", { src: item.image, alt: "" }) : h("h1", {}, item.text),
+        h("div", { class: `options n${options.length}` }, ...options.map((option) =>
+          h("button", { class: "big", onclick: () => { clearInterval(tick); done(option.value); } }, option.label))),
+        timer));
+    });
+    await call("session_mark", `${name}_answer`,
+               { item: item.id, choice, rt_ms: choice === null ? null : Math.round(performance.now() - shownAt) });
+  }
+}
+
 async function likert(items, scale, question, eventKind) {
   const answers = {};
   let index = 0;

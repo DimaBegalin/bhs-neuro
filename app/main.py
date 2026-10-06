@@ -61,10 +61,7 @@ def device_setup(kind: str, replay: Path | None, speed: float):
     if kind == "sim":
         from app.device.sim import SimDevice
         sim = SimDevice(speed=speed)
-        return (lambda: sim), {
-            "on:background_closed_start": lambda _p: setattr(sim, "eyes_closed", True),
-            "on:background_closed_end": lambda _p: setattr(sim, "eyes_closed", False),
-        }
+        return (lambda: sim), {}
     from app.device.replay import ReplayDevice
     path = replay or latest_recording()
     if path is None:
@@ -99,16 +96,16 @@ def selftest(out: Path, window: bool, sessions_root: Path | None = None) -> int:
             time.sleep(0.05)
         started = api.session_start({"name": "Самопроверка", "grade": 9, "lang": "ru", "with_headband": True})
         data = api.session_content()
-        api.session_mark("background_closed_start", {})
-        time.sleep(0.5)
-        api.session_mark("background_closed_end", {})
         from app import content
         kinds = {i["id"]: i["type"] for i in content.load("interests")["items"]}
         for item in data["interests"]["items"]:
             value = {"R": 5, "I": 4, "C": 3}.get(kinds[item["id"]], 1)  # выраженный профиль R-I
             api.session_mark("interest_answer", {"item": item["id"], "value": value, "rt_ms": 1500})
-        for card in data["cards"]:
-            api.session_mark("card_rating", {"card": card["id"], "liked": True, "rt_ms": 900})
+        for pair in data["card_pairs"]:
+            api.session_mark("card_choice", {"pair": pair, "chosen": pair[0], "rt_ms": 900})
+        for block in ("numeric", "verbal"):
+            for item in data.get(block, {}).get("items", []):
+                api.session_mark(f"{block}_answer", {"item": item["id"], "choice": 0, "rt_ms": 8000})
         summary = api.session_finish()
         link.disconnect()
         result = summary.get("result") or {}

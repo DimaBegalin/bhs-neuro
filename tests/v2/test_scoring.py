@@ -2,8 +2,8 @@ import pytest
 
 from app.scoring.interests import TYPES, score_interests
 from app.scoring.match import Occupation, pearson, rank
-from app.scoring.spatial import score_spatial
-from app.scoring.validity import discrepancies, longest_run, validity_flags
+from app.scoring.tasks import score_tasks
+from app.scoring.validity import card_shares, discrepancies, longest_run, validity_flags
 
 ITEMS = [{"id": f"{t}{i}", "type": t} for t in TYPES for i in range(5)]
 
@@ -55,28 +55,67 @@ def test_rank_picks_clusters_by_their_closest_professions():
     assert all(p["similarity"] >= 0.3 for c in result["clusters"] for p in c["professions"])
 
 
-def test_spatial_levels_and_timeouts():
+def test_task_levels_and_timeouts():
     trials = [{"item": i, "correct": i < 6, "rt_ms": 5000} for i in range(8)]
-    assert score_spatial(trials)["level"] == "strong"
+    assert score_tasks(trials)["level"] == "strong"
     trials = [{"item": i, "correct": None if i < 6 else False, "rt_ms": None} for i in range(8)]
-    s = score_spatial(trials)
+    s = score_tasks(trials)
     assert s["level"] == "zone" and s["timeouts"] == 6
+
+
+def choices(prefer: str, avoid: str) -> list[dict]:
+    """Все 15 пар типов: prefer выбирают всегда, avoid — никогда, остальное — первый из пары."""
+    import itertools
+    out = []
+    for a, b in itertools.combinations(TYPES, 2):
+        chosen = prefer if prefer in (a, b) else (b if a == avoid else a)
+        out.append({"types": [a, b], "chosen_type": chosen})
+    return out
+
+
+def test_card_shares_count_won_pairs():
+    shares = card_shares(choices(prefer="A", avoid="R"))
+    assert shares["A"] == 1.0 and shares["R"] == 0.0
+    assert all(v is not None for v in shares.values())
 
 
 def test_discrepancy_when_cards_contradict_questionnaire():
     p = score_interests(ITEMS, answers({"R": 5, "I": 4, "A": 1, "S": 2, "E": 1, "C": 3}))
-    cards = [{"card": "R1", "type": "R", "liked": False}, {"card": "R2", "type": "R", "liked": False},
-             {"card": "A1", "type": "A", "liked": True}, {"card": "A2", "type": "A", "liked": True}]
-    found = {d["type"]: d for d in discrepancies(p, cards)}
+    found = {d["type"]: d for d in discrepancies(p, choices(prefer="A", avoid="R"))}
     assert found["R"]["cards"] == "no" and found["A"]["cards"] == "yes"
 
 
 def test_validity_flags():
     p = score_interests(ITEMS, answers({t: 3 for t in TYPES}))
     rows = [{"item": i["id"], "value": 3, "rt_ms": 400} for i in ITEMS]
-    spatial = {"median_rt_ms": 1500, "share": 0.5, "chance": 0.5}
-    assert set(validity_flags(rows, p, [], spatial)) == {"too_fast", "straightlining", "guessing"}
+    guessed = {"median_rt_ms": 1500, "share": 0.3, "chance": 0.25}
+    careful = {"median_rt_ms": 9000, "share": 0.3, "chance": 0.25}
+    assert set(validity_flags(rows, p, [], [careful, guessed])) == {"too_fast", "straightlining", "guessing"}
+    assert "guessing" not in validity_flags(rows, p, [], [careful])
     assert longest_run([1, 1, 2, 2, 2, 1]) == 3
+
+
+def test_task_keys_are_valid_and_hidden_from_window():
+    from app import content
+    for block in ("numeric", "verbal"):
+        data = content.load(block)
+        assert len(data["items"]) >= 10
+        for item in data["items"]:
+            for lang in ("ru", "kk"):
+                options = item["options"][lang] if isinstance(item["options"], dict) else item["options"]
+                assert len(options) == 4 and len(set(options)) == 4 and 0 <= item["answer"] < 4, item["id"]
+                assert item["text"][lang], item["id"]
+        shown = content.for_window("kk")[block]
+        assert all("answer" not in i for i in shown["items"])
+        assert shown["items"][0]["options"][0]["value"] == 0
+
+
+def test_card_pairs_meet_every_type_once():
+    import itertools
+    from app import content
+    types = content.card_types()
+    met = sorted(tuple(sorted(types[c] for c in pair)) for pair in content.load("cards")["pairs"])
+    assert met == sorted(tuple(sorted(p)) for p in itertools.combinations(TYPES, 2))
 
 
 def test_bigfive_reverse_keys_and_stability():
@@ -90,5 +129,4 @@ def test_bigfive_reverse_keys_and_stability():
 
 def test_flat_profile_has_no_discrepancies():
     p = score_interests(ITEMS, answers({t: 4 for t in TYPES}))
-    cards = [{"card": "E1", "type": "E", "liked": True}, {"card": "E2", "type": "E", "liked": True}]
-    assert p.level == "flat" and discrepancies(p, cards) == []
+    assert p.level == "flat" and discrepancies(p, choices(prefer="E", avoid="R")) == []

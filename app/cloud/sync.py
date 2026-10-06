@@ -36,7 +36,6 @@ def build_row(folder: Path, manager_id: str) -> dict:
     result = read_json(folder / "result.json", {}) or {}
     student = meta.get("student") or {}
     monitoring = result.get("monitoring") or {}
-    background = monitoring.get("background") or {}
     rec = result.get("recommendation") or {}
     html_path = folder / PARENT_HTML
     return {
@@ -47,10 +46,10 @@ def build_row(folder: Path, manager_id: str) -> dict:
         "track": student.get("lang", "ru"),
         "started_at": meta.get("started_at", ""),
         "has_eeg": bool(meta.get("with_headband")),
-        "iaf": background.get("iaf_hz"),
+        "iaf": None,
         "pulse_bpm": None,
         "quality": {"modules": monitoring.get("modules"), "state": monitoring.get("state"),
-                    "background": background, "status": meta.get("status")} if monitoring else
+                    "status": meta.get("status")} if monitoring else
                    {"status": meta.get("status")},
         "domains": {
             "methodology": METHODOLOGY,
@@ -61,11 +60,13 @@ def build_row(folder: Path, manager_id: str) -> dict:
                           "professions": [p["title"].get("ru") for p in c["professions"]]}
                          for c in rec.get("clusters", [])],
             "spatial": result.get("spatial"),
+            "numeric": result.get("numeric"),
+            "verbal": result.get("verbal"),
+            "card_shares": result.get("card_shares"),
             "work_style": result.get("work_style"),
             "subjects": result.get("subjects"),
             "flags": result.get("flags"),
             "discrepancies": result.get("discrepancies"),
-            "card_attention": (monitoring.get("cards") or {}).get("type_attention"),
         },
         "report_html": html_path.read_text(encoding="utf-8") if html_path.exists() else None,
     }

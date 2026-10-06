@@ -15,6 +15,8 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table,
                                 TableStyle)
 
+from app.scoring.tasks import BLOCKS
+
 FONT_DIR = Path(__file__).resolve().parent / "fonts"
 ACCENT = colors.HexColor("#8b3fc4")
 MUTED = colors.HexColor("#6b6f78")
@@ -136,10 +138,9 @@ def render_parent(model: dict, path: Path) -> Path:
     else:
         story.append(P(t["no_clusters"], s["base"]))
 
-    spatial = model.get("spatial") or {}
-    if spatial.get("total"):
-        story += [P(t["spatial_title"], s["h2"]),
-                  P(f"{spatial['correct']} / {spatial['total']}", s["base"])]
+    if model.get("abilities"):
+        story += [P(t["abilities_title"], s["h2"]), P(t["abilities_note"], s["muted"]), Spacer(1, 2 * mm)]
+        story += [Paragraph(f"<b>{escape(a['title'])}</b>: {escape(a['text'])}", s["base"]) for a in model["abilities"]]
     if model.get("style"):
         story += [P(t["style_title"], s["h2"]), P(t["style_note"], s["muted"]), Spacer(1, 2 * mm),
                   _bars([(row["name"], row["score"]) for row in model["style"]])]
@@ -147,7 +148,7 @@ def render_parent(model: dict, path: Path) -> Path:
     story.append(P(t["neuro_title"], s["h2"]))
     if model.get("neuro"):
         story += [P(model["neuro"]["badge"], s["badge"]), Spacer(1, 3 * mm),
-                  P(model["neuro"]["attention"], s["base"])]
+                  P(model["neuro"]["text"], s["base"])]
     else:
         story.append(P(t["neuro_none"], s["muted"]))
 
@@ -182,10 +183,11 @@ def render_manager(model: dict, path: Path) -> Path:
                           ", ".join(f"{p['title']['ru']} ({p['similarity']:.2f})" for p in c["professions"])]
                          for c in r["recommendation"]["clusters"]], s, [45 * mm, 15 * mm, 110 * mm]))
 
-    sp = r.get("spatial") or {}
-    story.append(P("Задачи на вращение", s["h2"]))
-    story.append(P(f"Верно {sp.get('correct')} из {sp.get('total')}, тайм-аутов {sp.get('timeouts')}, "
-                   f"медиана времени {sp.get('median_rt_ms')} мс, уровень {sp.get('level')}, шанс {sp.get('chance')}", s["base"]))
+    story.append(P("Задания", s["h2"]))
+    story.append(_table([["Блок", "Верно", "Тайм-аутов", "Медиана, мс", "Уровень", "Шанс"]] +
+                        [[b, f"{t.get('correct')}/{t.get('total')}", t.get("timeouts"), t.get("median_rt_ms"),
+                          t.get("level") or "—", t.get("chance")]
+                         for b in BLOCKS if (t := r.get(b) or {}).get("total")], s))
 
     ws = r.get("work_style")
     if ws:
@@ -194,6 +196,8 @@ def render_manager(model: dict, path: Path) -> Path:
 
     story.append(P("Достоверность", s["h2"]))
     story.append(P("Флаги: " + (", ".join(r["flags"]) or "нет"), s["base"]))
+    shares = r.get("card_shares") or {}
+    story.append(P("Карточки, доля выбранных пар: " + (", ".join(f"{k} {v}" for k, v in shares.items() if v is not None) or "—"), s["base"]))
     story.append(P("Расхождения с карточками: " + (", ".join(f"{d['type']} ({d['questionnaire']}/{d['cards']})" for d in r["discrepancies"]) or "нет"), s["base"]))
 
     mon = r.get("monitoring")
@@ -201,19 +205,9 @@ def render_manager(model: dict, path: Path) -> Path:
     if not mon:
         story.append(P("Без ободка.", s["base"]))
     else:
-        bg = mon.get("background") or {}
-        story.append(P(f"Фон: альфа-пик {bg.get('iaf_hz')}, реакция альфы {bg.get('alpha_reactivity')}, "
-                       f"полоса {bg.get('band_hz')}, внимание к карточкам {'показано' if bg.get('reactive') else 'скрыто'}", s["base"]))
         story.append(P("Качество по модулям: " + ", ".join(f"{k} {v['quality']}" for k, v in (mon.get("modules") or {}).items()), s["base"]))
         st = mon.get("state") or {}
         story.append(P(f"Движения: {st.get('movement')}; θ/α к концу: {st.get('theta_alpha_change')}; усталость: {st.get('fatigue_signs')}", s["base"]))
-        cards = (mon.get("cards") or {}).get("items") or []
-        liked = {c["card"]: c.get("liked") for c in r.get("cards", [])}
-        if cards:
-            story.append(_table([["Карточка", "Тип", "Оценка", "Альфа, %", "Ранг внимания", "Чистых эпох"]] +
-                                [[c["card"], c["type"], {True: "интересно", False: "не очень"}.get(liked.get(c["card"]), "—"),
-                                  "—" if c["alpha_change_pct"] is None else f"{c['alpha_change_pct']:.0f}",
-                                  c.get("attention_rank", "—"), c["clean_epochs"]] for c in cards], s))
     story += _comment(model, s)
     story += [Spacer(1, 4 * mm), P(model["t"]["methods"], s["small"]), P(model["t"]["onet"], s["small"])]
     _build(path, story)

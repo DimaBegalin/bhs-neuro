@@ -3,8 +3,9 @@
 
 Берёт папки сессий с одного или нескольких ноутбуков и считает то, что
 нужно для решения о переходе всех менеджеров: хронометраж, надёжность
-шкал по языкам, долю плоских профилей и флагов, трудность задач на
-вращение, согласие опросника с карточками и долю годной ЭЭГ.
+шкал по языкам, долю плоских профилей и флагов, трудность каждого задания
+(вращение, числа, слова), согласие опросника с выбором карточек и число
+сессий с ободком.
 """
 from __future__ import annotations
 
@@ -14,6 +15,7 @@ from pathlib import Path
 
 from app import content
 from app.scoring.interests import TYPES
+from app.scoring.tasks import BLOCKS
 from app.storage import read_json
 
 GATE_MEDIAN_MIN = 13.0
@@ -57,8 +59,7 @@ def _module_minutes(events: list[dict]) -> dict[str, float]:
 def analyze(roots: list[Path]) -> dict:
     interest_items = content.load("interests")["items"]
     big5_items = content.load("bigfive")["items"] if content.available("bigfive") else []
-    spatial_key = content.spatial_key()
-    card_types = content.card_types()
+    keys = {block: content.task_key(block) for block in BLOCKS}
 
     sessions = []
     for folder in _sessions(roots):
@@ -72,10 +73,10 @@ def analyze(roots: list[Path]) -> dict:
     modules: dict[str, list[float]] = defaultdict(list)
     by_lang_interest: dict[str, dict[str, list[list[float]]]] = defaultdict(lambda: defaultdict(list))
     by_lang_big5: dict[str, dict[str, list[list[float]]]] = defaultdict(lambda: defaultdict(list))
-    spatial_items: dict[str, list[int]] = defaultdict(list)
+    task_items: dict[str, dict[str, list[int]]] = {block: defaultdict(list) for block in BLOCKS}
     levels, flags = defaultdict(int), defaultdict(int)
     agree = []
-    eeg = {"sessions": 0, "reactive": 0, "cards_shown": 0}
+    eeg = {"sessions": 0}
 
     for folder, meta, events, result in finished:
         lang = (meta.get("student") or {}).get("lang", "ru")
@@ -90,25 +91,20 @@ def analyze(roots: list[Path]) -> dict:
             ids = [(i["id"], i["keyed"]) for i in big5_items if i["scale"] == trait]
             by_lang_big5[lang][trait].append([None if b5.get(i) is None else (b5[i] if k == "+" else 6 - b5[i]) for i, k in ids])
         for e in events:
-            if e["kind"] == "spatial_answer":
+            block = e["kind"].removesuffix("_answer")
+            if block in keys:
                 p = e["payload"]
-                spatial_items[p["item"]].append(int(p.get("choice") == spatial_key.get(p["item"])))
+                task_items[block][p["item"]].append(int(p.get("choice") == keys[block].get(p["item"])))
         if result:
             levels[result["interests"]["level"]] += 1
             for f in result.get("flags", []):
                 flags[f] += 1
-            liked = defaultdict(list)
-            for c in result.get("cards", []):
-                if c.get("liked") is not None:
-                    liked[c["type"]].append(1.0 if c["liked"] else 0.0)
-            pairs = [(result["interests"]["scores"][t], statistics.mean(liked[t])) for t in TYPES if liked[t]]
+            shares = result.get("card_shares") or {}
+            pairs = [(result["interests"]["scores"][t], shares[t]) for t in TYPES if shares.get(t) is not None]
             if len(pairs) >= 4 and len({p[1] for p in pairs}) > 1 and len({p[0] for p in pairs}) > 1:
                 agree.append(statistics.correlation([p[0] for p in pairs], [p[1] for p in pairs]))
-            mon = result.get("monitoring")
-            if mon:
+            if result.get("monitoring"):
                 eeg["sessions"] += 1
-                eeg["reactive"] += int(bool((mon.get("background") or {}).get("reactive")))
-                eeg["cards_shown"] += int(bool((mon.get("cards") or {}).get("shown")))
 
     alphas = {lang: {t: cronbach_alpha(rows) for t, rows in scales.items()} for lang, scales in by_lang_interest.items()}
     b5_alphas = {lang: {t: cronbach_alpha(rows) for t, rows in scales.items()} for lang, scales in by_lang_big5.items()}
@@ -123,7 +119,8 @@ def analyze(roots: list[Path]) -> dict:
         "module_minutes": {m: round(statistics.median(v), 1) for m, v in modules.items()},
         "interest_alpha": alphas, "bigfive_alpha": b5_alphas,
         "levels": dict(levels), "flags": dict(flags),
-        "spatial_item_accuracy": {i: round(statistics.mean(v), 2) for i, v in sorted(spatial_items.items())},
+        "task_item_accuracy": {block: {i: round(statistics.mean(v), 2) for i, v in sorted(items.items())}
+                               for block, items in task_items.items()},
         "questionnaire_cards_r": None if not agree else round(statistics.mean(agree), 2),
         "eeg": eeg,
         "gates": {
@@ -154,9 +151,9 @@ def render_markdown(r: dict) -> str:
     lines += ["", "## Профили и достоверность", "",
               f"- Выраженность: {r['levels']}", f"- Флаги: {r['flags'] or 'нет'}",
               f"- Согласие опросника и карточек (средняя r): {fmt(r['questionnaire_cards_r'])}", "",
-              "## Задачи на вращение: доля верных", ""]
-    lines += [f"- {i}: {v}" for i, v in r["spatial_item_accuracy"].items()]
+              "## Задания: доля верных по каждому", ""]
+    for block, items in r["task_item_accuracy"].items():
+        lines += [f"- {block}: " + (", ".join(f"{i} {v}" for i, v in items.items()) or "—")]
     e = r["eeg"]
-    lines += ["", "## ЭЭГ", "", f"- Сессий с ободком: {e['sessions']}, реакция альфы есть: {e['reactive']}, "
-              f"внимание к карточкам показано: {e['cards_shown']}"]
+    lines += ["", "## ЭЭГ", "", f"- Сессий с ободком: {e['sessions']}"]
     return "\n".join(lines) + "\n"

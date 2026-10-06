@@ -28,10 +28,7 @@ opened: list = []
 api_module._open_path = lambda path: opened.append(str(path))  # не открывать PDF во время прогона
 out.mkdir(parents=True, exist_ok=True)
 sim = SimDevice(speed=1.0)
-api = Api(DeviceLink(lambda: sim), SessionStore(out / "sessions"), manager="e2e",
-          dev_controls={"on:background_closed_start": lambda _p: setattr(sim, "eyes_closed", True),
-                        "on:background_closed_end": lambda _p: setattr(sim, "eyes_closed", False)},
-          fast=True)
+api = Api(DeviceLink(lambda: sim), SessionStore(out / "sessions"), manager="e2e", fast=True)
 window = webview.create_window("Профориентация BHS", url=str(UI_INDEX), js_api=api,
                                width=1240, height=820)
 log: list[str] = []
@@ -78,14 +75,15 @@ def drive_battery() -> None:
             if kind not in seen:
                 seen.add(kind); shot(f"5-{kind}")
             js("document.querySelectorAll('.scale button')[3].click()")
-        elif "Зеркальная" in labels:
-            if "spatial" not in seen:
-                seen.add("spatial"); shot("5-spatial")
-            click("Зеркальная")
-        elif "Интересно" in labels:
-            if "card" not in seen:
-                seen.add("card"); shot("5-card-rating")
-            click("Интересно")
+        elif has(".task .options button"):
+            block = js("document.querySelector('.task').dataset.block")
+            if block not in seen:
+                seen.add(block); shot(f"5-{block}")
+            js("document.querySelector('.task .options button').click()")
+        elif has(".pair button"):
+            if "cards" not in seen:
+                seen.add("cards"); shot("5-cards")
+            js("document.querySelector('.pair button').click()")
         elif has(".subjects"):
             shot("5-subjects")
             js("[...document.querySelectorAll('.subjects button')].slice(0, 2).forEach(b => b.click())")
@@ -93,8 +91,6 @@ def drive_battery() -> None:
             js("document.querySelectorAll('.subjects button')[1].click()")
             time.sleep(0.3)
             click("Готово")
-        elif has(".card-show img") and "card-show" not in seen:
-            seen.add("card-show"); shot("5-card-show")
         elif "Начать" in labels:
             click("Начать")
     raise RuntimeError("батарея не дошла до конца")
@@ -119,8 +115,6 @@ def scenario() -> None:
         shot("3-consent")
         click("Понятно, начинаем")
         time.sleep(1)
-        click("Начать")  # фон
-        time.sleep(7)
         drive_battery()
         click("Для менеджера: открыть итог")
         time.sleep(2)
