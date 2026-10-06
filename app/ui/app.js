@@ -17,7 +17,7 @@ const STATUS_TEXT = { finished: "завершена", aborted: "прервана
 const CONNECT_PATIENCE_S = 120;
 
 let api = null;
-const ctx = { student: null, withHeadband: true, session: null, startedAt: 0, timers: [] };
+const ctx = { mac: false, student: null, withHeadband: true, session: null, startedAt: 0, timers: [] };
 
 // ── мелочи ──────────────────────────────────────────────────────────────
 
@@ -222,6 +222,12 @@ function showDevice() {
     h("div", { class: "row" }, h("button", { class: "ghost", onclick: () => showNewStudent() }, "Назад"),
       connect, reconnect, without, next)));
 
+  // на Mac ободок держит Mind Tracker BCI, программа лишь подключается к нему вторым
+  if (ctx.mac) api.device_connect();
+  const idleHint = ctx.mac
+    ? "Откройте Mind Tracker BCI, подключите в нём ободок и перейдите на вкладку «Мониторинг». Mind Tracker BCI не закрывайте до конца сессии. Затем нажмите «Подключить»."
+    : "Закройте Mind Tracker, наденьте ободок, нажмите на нём кнопку и нажмите «Подключить».";
+
   every(500, async () => {
     const s = await api.device_state();
     status.textContent = STATE_TEXT[s.state] || s.state;
@@ -242,8 +248,10 @@ function showDevice() {
       without.classList.add("primary");
     } else if (streaming && good < 4) {
       hint.textContent = "Поправьте ободок: электроды без контакта или с шумом. Смочите их и прижмите плотнее.";
-    } else if (s.state === "idle") {
-      hint.textContent = "Закройте Mind Tracker, наденьте ободок, нажмите на нём кнопку и нажмите «Подключить».";
+    } else if (s.state === "idle" || (ctx.mac && s.state === "error")) {
+      hint.textContent = idleHint;
+    } else if (ctx.mac && (s.state === "stalled" || s.state === "lost")) {
+      hint.textContent = "Сигнал идёт, только пока Mind Tracker BCI открыт на вкладке «Мониторинг». Проверьте его и нажмите «Переподключить».";
     } else {
       hint.textContent = "";
     }
@@ -535,6 +543,7 @@ window.addEventListener("pywebviewready", async () => {
   api = window.pywebview.api;
   const info = await api.app_info();
   document.getElementById("version").textContent = `v${info.version}`;
+  ctx.mac = info.mac;
   setInterval(refreshPill, 1000);
   setInterval(refreshCloud, 5000);
   refreshPill();

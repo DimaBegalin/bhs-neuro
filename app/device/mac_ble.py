@@ -17,9 +17,9 @@ class MacBleDevice:
             self._device = BleHeadbandDevice(wait_s=wait_s)
         except BleNotFound as error:
             raise DeviceNotFound(
-                f"{error}. Откройте Mind Tracker, подключите в нём ободок и вкладку «Мониторинг»") from error
+                f"{error}. Откройте Mind Tracker BCI, подключите в нём ободок и перейдите на вкладку «Мониторинг»") from error
         self.fs = self._device.fs
-        self.name = self._device.peripheral_name or "Headband (Mac, через Mind Tracker)"
+        self.name = self._device.peripheral_name or "Headband (через Mind Tracker BCI)"
 
     @property
     def connected(self) -> bool:

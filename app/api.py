@@ -11,6 +11,7 @@ import threading
 from dataclasses import asdict
 
 import random
+import sys
 
 from app import __version__, content
 from app.battery.plan import plan_for
@@ -42,7 +43,7 @@ class Api:
 
     def app_info(self) -> dict:
         return {"version": __version__, "manager": self._manager,
-                "dev": sorted(self._dev)}
+                "dev": sorted(self._dev), "mac": sys.platform == "darwin"}
 
     # ободок -----------------------------------------------------------------
 

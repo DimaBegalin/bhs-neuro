@@ -111,7 +111,8 @@ def scenario() -> None:
         log.append(f"выбрано: {chosen}")
         click("Далее")
         time.sleep(0.5)
-        click("Подключить")
+        if sys.platform != "darwin":  # на Mac экран подключается сам
+            click("Подключить")
         time.sleep(3)
         shot("2-device")
         click("Ободок готов, дальше")
