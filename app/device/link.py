@@ -80,6 +80,7 @@ class DeviceLink:
         threading.Thread(target=self._connect, name="device-connect", daemon=True).start()
 
     def _connect(self) -> None:
+        log.info("ободок: ищу")
         try:
             device = self._factory()
             device.start(self._on_chunk)
@@ -96,6 +97,7 @@ class DeviceLink:
             self._restarted_at = None
             self._state = "streaming"
             self._message = ""
+        log.info("ободок: подключён, %s, %s Гц", getattr(device, "name", "?"), getattr(device, "fs", "?"))
         self._closing.clear()
         if self._watch_enabled and (self._watchdog is None or not self._watchdog.is_alive()):
             self._watchdog = threading.Thread(target=self._watch, name="device-watchdog",
@@ -190,6 +192,7 @@ class DeviceLink:
     # состояние для интерфейса ----------------------------------------------
 
     def _set(self, state: str, message: str) -> None:
+        log.warning("ободок: %s — %s", state, message)  # на экране текст пропадает, в логе остаётся
         with self._lock:
             self._state, self._message = state, message
 

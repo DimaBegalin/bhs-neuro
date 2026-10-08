@@ -161,6 +161,36 @@ def selftest(out: Path, window: bool, sessions_root: Path | None = None) -> int:
     return 0 if report["ok"] else 1
 
 
+def ble_probe(out: Path, listen_s: float = 8.0) -> int:
+    """Проверка ободка без окна: подключение через Mind Tracker, поток, итог в JSON.
+
+    Запуск собранного приложения: open -n «Профориентация BHS.app» --args --ble-probe out.json.
+    Через open разрешение Bluetooth спрашивается у самого приложения, как при обычном запуске.
+    """
+    import json
+    import time
+    import traceback
+
+    report: dict = {"version": __version__, "ok": False}
+    try:
+        factory, _ = device_setup("ble" if sys.platform == "darwin" else "auto", None, 1.0)
+        link = DeviceLink(factory, watch=False)
+        link.connect()
+        started = time.monotonic()
+        while link.snapshot()["state"] == "searching" and time.monotonic() - started < 60:
+            time.sleep(0.2)
+        report["connect_s"] = round(time.monotonic() - started, 1)
+        time.sleep(listen_s if link.streaming else 0)
+        snap = link.snapshot()
+        report.update({k: snap[k] for k in ("state", "message", "name", "fs", "packets", "quality", "battery")})
+        report["ok"] = snap["packets"] > 0
+        link.disconnect()
+    except Exception:
+        report["error"] = traceback.format_exc()
+    out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    return 0 if report["ok"] else 1
+
+
 def _hard_exit(code: int) -> None:
     """Выход без ожидания чужих потоков.
 
@@ -187,9 +217,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--fast", action="store_true", help="укороченные модули (разработка)")
     parser.add_argument("--selftest", type=Path, default=None,
                         help="проверить сборку без человека и записать отчёт в этот файл")
+    parser.add_argument("--ble-probe", type=Path, default=None,
+                        help="проверить ободок через Mind Tracker без окна и записать итог в этот файл")
     parser.add_argument("--selftest-window", action="store_true",
                         help="в самопроверке также открыть окно")
     args = parser.parse_args(argv)
+    if args.ble_probe is not None:
+        _configure_logging(True)
+        _hard_exit(ble_probe(args.ble_probe))
     if args.selftest is not None:
         _hard_exit(selftest(args.selftest, args.selftest_window))
 

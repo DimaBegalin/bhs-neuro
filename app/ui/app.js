@@ -223,13 +223,19 @@ function showDevice() {
       connect, reconnect, without, next)));
 
   // на Mac ободок держит Mind Tracker BCI, программа лишь подключается к нему вторым
+  // и повторяет попытку, пока менеджер подключает ободок в Mind Tracker
   if (ctx.mac) api.device_connect();
+  let triedAt = Date.now();
   const idleHint = ctx.mac
-    ? "Откройте Mind Tracker BCI, подключите в нём ободок и перейдите на вкладку «Мониторинг». Mind Tracker BCI не закрывайте до конца сессии. Затем нажмите «Подключить»."
+    ? "Откройте Mind Tracker BCI, подключите в нём ободок и перейдите на вкладку «Мониторинг». Mind Tracker BCI не закрывайте до конца сессии. Программа подключится сама."
     : "Закройте Mind Tracker, наденьте ободок, нажмите на нём кнопку и нажмите «Подключить».";
 
   every(500, async () => {
     const s = await api.device_state();
+    if (ctx.mac && s.state === "error" && Date.now() - triedAt > 5000) {
+      triedAt = Date.now();
+      api.device_connect();
+    }
     status.textContent = STATE_TEXT[s.state] || s.state;
     message.textContent = s.message || (s.name ? s.name : "");
     channels.replaceChildren(...["T3", "T4", "O1", "O2"].map((ch) => {
