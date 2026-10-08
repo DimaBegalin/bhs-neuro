@@ -65,7 +65,8 @@ def build_summary(result: dict, lang: str) -> list[dict]:
         strengths.append(tr(T, "no_strength", lang))
     strong = " ".join(strengths + growth)
 
-    # 3. Расхождение
+    # 3. Расхождение: сверка опросника с выбором карточек, только если карточки были
+    compared = any(v is not None for v in (result.get("card_shares") or {}).values())
     gaps = []
     for d in result.get("discrepancies", [])[:MAX_DISCREPANCIES]:
         key = "disc_high_no" if d["questionnaire"] == "high" else "disc_low_yes"
@@ -91,13 +92,14 @@ def build_summary(result: dict, lang: str) -> list[dict]:
         steps = NEXT_STEPS[first][lang][:2] + [NEXT_STEPS[c][lang][0] for c in rest[:1]]
     steps.append(tr(T, "retest", lang))
 
-    return [
+    points = [
         {"key": "where", "title": tr(T, "s1", lang), "text": where},
         {"key": "strength", "title": tr(T, "s2", lang), "text": strong or "—"},
         {"key": "gap", "title": tr(T, "s3", lang), "text": gap},
         {"key": "state", "title": tr(T, "s4", lang), "text": state},
         {"key": "steps", "title": tr(T, "s5", lang), "steps": steps},
     ]
+    return [p for p in points if p["key"] != "gap" or compared]
 
 
 def build_model(result: dict, meta: dict) -> dict:

@@ -25,8 +25,8 @@ def test_full_session_with_headband(tmp_path):
     api.device_connect()
     assert wait_until(lambda: api.device_state()["state"] == "streaming")
     started = api.session_start({**STUDENT, "with_headband": True})
-    # минуты фона в начале больше нет: сразу интересы
-    assert [m["id"] for m in started["plan"]][:2] == ["interests", "cards"]
+    # с 07.10.2026 в тесте только интересы и стиль работы
+    assert [m["id"] for m in started["plan"]] == ["interests", "bigfive"]
     time.sleep(1.0)
     done = api.session_finish()
     assert done["status"] == "finished" and done["samples"] > 0
@@ -109,7 +109,8 @@ def test_comment_rebuilds_parent_pdf_and_requeues_cloud(tmp_path, monkeypatch):
         api.session_mark("interest_answer", {"item": item["id"], "value": 5 if "-R" in item["id"] else 2, "rt_ms": 2000})
     api.session_finish()
     view = api.session_view(started["id"])
-    assert view["comment"] is None and len(view["report"]["summary"]) == 5
+    # без карточек пункта «Расхождение» нет: четыре пункта
+    assert view["comment"] is None and len(view["report"]["summary"]) == 4
     res = api.session_comment(started["id"], "Обсудили, пробуем кружок")
     assert res["ok"] and res["comment"]["author"] == "Айжан"
     assert opened[-1].name == "отчёт-родителю.pdf"

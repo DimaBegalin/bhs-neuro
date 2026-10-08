@@ -71,6 +71,13 @@ def test_summary_has_five_points(lang):
     assert len(model["summary"][4]["steps"]) == 4
 
 
+def test_summary_without_cards_skips_discrepancy_point():
+    # карточки выключены (07.10.2026): сверять опросник не с чем
+    result = {**_result(), "card_shares": {t: None for t in "RIASEC"}, "discrepancies": []}
+    keys = [s["key"] for s in build_model(result, META)["summary"]]
+    assert keys == ["where", "strength", "state", "steps"]
+
+
 def test_flat_profile_summary_offers_trials_not_directions():
     model = build_model(_result(level="flat"), META)
     assert "не выражены" in model["summary"][0]["text"]
