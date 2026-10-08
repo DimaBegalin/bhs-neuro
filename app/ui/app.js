@@ -297,10 +297,23 @@ function resultBlock(summary) {
   return h("div", { class: "stack" },
     h("div", { class: "row" },
       h("button", { onclick: () => api.open_report(summary.id, "manager") }, "PDF для профориентолога"),
+      roadmapButton(summary),
       h("button", { class: "ghost", onclick: () => api.show_folder(summary.id) }, "Папка сессии")),
     ...items,
     clusters.length ? h("h3", {}, "Направления и профессии") : null, ...clusters,
     commentBlock(summary));
+}
+
+// дорожная карта BHS — для 8–10 класса, печатается вместе с отчётами
+function roadmapButton(summary) {
+  const student = summary.student || (summary.meta && summary.meta.student) || {};
+  if (![8, 9, 10].includes(student.grade)) return null;
+  const note = h("span", { class: "error" });
+  const button = h("button", { class: "primary", onclick: async () => {
+    const res = await api.open_report(summary.id, "roadmap");
+    note.textContent = res && res.error ? res.error : "";
+  } }, "Дорожная карта BHS");
+  return h("span", { class: "row" }, button, note);
 }
 
 function commentBlock(summary) {

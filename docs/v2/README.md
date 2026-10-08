@@ -59,6 +59,7 @@ app/pilot.py         разбор пилота (tools/v2/pilot_report.py)
 | `result.json` | итог: интересы, рекомендация, задачи, стиль работы, флаги, расхождения, нейромониторинг |
 | `comment.json` | комментарий профориентолога |
 | `отчёт-родителю.pdf`, `отчёт-профориентологу.pdf`, `report.html` | отчёты |
+| `дорожная-карта.pdf` | Career & University Roadmap BHS для 8–10 класса (`app/report/roadmap.py`): HTML → PDF через Edge или Chrome; без браузера не собирается, остальные отчёты — да |
 
 Во время записи вместо `signal.npz` и `events.json` лежат `signal.part` и `events.jsonl`. Статус `recording` у незакрытой сессии означает сбой. При следующем запуске `recover_interrupted` собирает файлы и ставит статус `interrupted`.
 

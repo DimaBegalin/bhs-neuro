@@ -1,12 +1,15 @@
-"""Отчёты: саммари, PDF для родителя, PDF для профориентолога, HTML для облака."""
+"""Отчёты: саммари, PDF для родителя, PDF для профориентолога, HTML для облака,
+дорожная карта BHS для 8–10 класса."""
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from pathlib import Path
 
 from app.report.html import render_parent_html
 from app.report.model import build_model
 from app.report.pdf import render_manager, render_parent
+from app.report.roadmap import ROADMAP_PDF, make_roadmap
 from app.storage import atomic_write_bytes, atomic_write_json, read_json
 
 PARENT_PDF = "отчёт-родителю.pdf"
@@ -14,6 +17,7 @@ MANAGER_PDF = "отчёт-профориентологу.pdf"
 PARENT_HTML = "report.html"
 COMMENT = "comment.json"
 MAX_COMMENT = 3000
+log = logging.getLogger(__name__)
 
 
 def load_comment(folder: Path) -> dict | None:
@@ -46,4 +50,8 @@ def make_reports(folder: Path, result: dict | None = None) -> dict:
     render_parent(model, folder / PARENT_PDF)
     render_manager(model, folder / MANAGER_PDF)
     atomic_write_bytes(folder / PARENT_HTML, render_parent_html(model).encode("utf-8"))
+    try:  # печатает браузер: его сбой не должен ломать основные отчёты
+        make_roadmap(folder, model)
+    except Exception:
+        log.exception("дорожная карта %s", folder.name)
     return model

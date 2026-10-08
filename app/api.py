@@ -15,7 +15,7 @@ import sys
 
 from app import __version__, content
 from app.battery.plan import plan_for
-from app.report import MANAGER_PDF, PARENT_PDF, load_comment, make_reports, save_comment
+from app.report import MANAGER_PDF, PARENT_PDF, ROADMAP_PDF, load_comment, make_reports, save_comment
 from app.report.model import build_model
 from app.storage import read_json
 from app.session.result import build_result
@@ -124,7 +124,7 @@ class Api:
             return {"error": "нет активной сессии"}
         meta = session.finish()
         summary = {"id": meta["id"], "status": meta["status"], "samples": meta.get("samples"),
-                   "fs": meta.get("fs"), "result": None}
+                   "fs": meta.get("fs"), "student": meta.get("student"), "result": None}
         try:
             summary["result"] = build_result(session.folder)
             model = make_reports(session.folder, summary["result"])
@@ -147,13 +147,15 @@ class Api:
         folder = self._folder(session_id)
         if folder is None:
             return {"error": "нет такой сессии"}
-        path = folder / (PARENT_PDF if kind == "parent" else MANAGER_PDF)
+        path = folder / {"parent": PARENT_PDF, "roadmap": ROADMAP_PDF}.get(kind, MANAGER_PDF)
         if not path.exists():
             try:
                 build_result(folder)
                 make_reports(folder)
             except Exception as error:
                 return {"error": f"отчёт не собран: {error}"}
+        if not path.exists():  # дорожная карта: класс без шаблона или нет Chrome/Edge
+            return {"error": "дорожная карта не собрана: она есть для 8–10 класса и нужен Chrome или Edge"}
         _open_path(path)
         return {"ok": True}
 
