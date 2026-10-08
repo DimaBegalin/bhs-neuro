@@ -316,7 +316,12 @@ function roadmapButton(summary) {
   if (![8, 9, 10].includes(student.grade)) return null;
   const note = h("span", { class: "error" });
   const button = h("button", { class: "primary", onclick: async () => {
+    button.disabled = true;
+    note.className = "muted";
+    note.textContent = "Готовлю дорожную карту…";
     const res = await api.open_report(summary.id, "roadmap");
+    button.disabled = false;
+    note.className = "error";
     note.textContent = res && res.error ? res.error : "";
   } }, "Дорожная карта BHS");
   return h("span", { class: "row" }, button, note);

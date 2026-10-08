@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
 from html import escape as e
 from pathlib import Path
 
@@ -28,6 +29,12 @@ ROADMAP_PDF = "дорожная-карта.pdf"
 ROADMAP_HTML = "дорожная-карта.html"
 FONTS = BUNDLE_ROOT / "app" / "ui" / "fonts"
 _printing = threading.Lock()  # фоновая печать и кнопка не запускают браузер одновременно
+
+
+def wait_printing() -> None:
+    """Дождаться фоновой печати, если она идёт: кнопке не нужно печатать второй раз."""
+    with _printing:
+        pass
 
 PATHWAY = ["Career Guidance", "Academic Planning", "Portfolio", "University List", "Personal Statement", "Application"]
 PRINCIPLES = [("Дать попробовать", "Проекты, конкурсы, дебаты, волонтёрство и реальные задачи."),
@@ -250,11 +257,13 @@ def _browser() -> str | None:
         roots = [os.environ.get(k, "") for k in ("PROGRAMFILES(X86)", "PROGRAMFILES", "LOCALAPPDATA")]
         found = [Path(r) / sub for r in roots if r for sub in (
             r"Microsoft\Edge\Application\msedge.exe", r"Google\Chrome\Application\chrome.exe")]
-    else:
-        found = [Path(p) for p in (
-            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-            "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
-            "/Applications/Chromium.app/Contents/MacOS/Chromium")]
+    else:  # «только для себя» Chrome ставится в ~/Applications, переименованный находит Spotlight
+        apps = [Path("/Applications"), Path.home() / "Applications"]
+        found = [root / f"{name}.app/Contents/MacOS/{name}" for root in apps
+                 for name in ("Google Chrome", "Microsoft Edge", "Chromium")]
+        spotlight = subprocess.run(["mdfind", "kMDItemCFBundleIdentifier == 'com.google.Chrome'"],
+                                   capture_output=True, text=True, timeout=10).stdout.split("\n")
+        found += [Path(app) / "Contents/MacOS/Google Chrome" for app in spotlight if app.endswith(".app")]
     for path in found:
         if path.exists():
             return str(path)
@@ -382,12 +391,24 @@ def _print(folder: Path, model: dict) -> Path | None:
         return None
     pdf = folder / ROADMAP_PDF
     tmp = folder / ".дорожная-карта.tmp.pdf"
-    subprocess.run([browser, "--headless=new", "--disable-gpu", "--no-pdf-header-footer", "--no-first-run",
-                    "--use-mock-keychain", "--password-store=basic", "--disable-extensions",
-                    "--allow-file-access-from-files", f"--user-data-dir={folder / '.browser'}",
-                    f"--print-to-pdf={tmp}", html.as_uri()],
-                   check=True, capture_output=True, timeout=90,
-                   creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-    shutil.rmtree(folder / ".browser", ignore_errors=True)
+    started = time.monotonic()
+    try:
+        done = subprocess.run(
+            [browser, "--headless=new", "--disable-gpu", "--no-pdf-header-footer", "--no-first-run",
+             "--no-default-browser-check", "--use-mock-keychain", "--password-store=basic",
+             "--disable-extensions", "--disable-sync", "--disable-background-networking",
+             "--disable-component-update", "--allow-file-access-from-files",
+             f"--user-data-dir={folder / '.browser'}", f"--print-to-pdf={tmp}", html.as_uri()],
+            capture_output=True, text=True, errors="replace", timeout=90,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    except subprocess.TimeoutExpired:
+        log.error("дорожная карта: %s не ответил за 90 с", browser)
+        return None
+    finally:
+        shutil.rmtree(folder / ".browser", ignore_errors=True)
+    if done.returncode != 0 or not tmp.exists():
+        log.error("дорожная карта: %s завершился с кодом %s: %s", browser, done.returncode, done.stderr[-1500:])
+        return None
     os.replace(tmp, pdf)
+    log.info("дорожная карта: %.1f с, %s", time.monotonic() - started, Path(browser).name)
     return pdf

@@ -16,6 +16,7 @@ import sys
 from app import __version__, content
 from app.battery.plan import plan_for
 from app.report import MANAGER_PDF, PARENT_PDF, ROADMAP_PDF, load_comment, make_reports, save_comment
+from app.report.roadmap import wait_printing
 from app.report.model import build_model
 from app.storage import read_json
 from app.session.result import build_result
@@ -148,6 +149,8 @@ class Api:
         if folder is None:
             return {"error": "нет такой сессии"}
         path = folder / {"parent": PARENT_PDF, "roadmap": ROADMAP_PDF}.get(kind, MANAGER_PDF)
+        if kind == "roadmap" and not path.exists():
+            wait_printing()  # фоновая печать после теста могла ещё идти: не печатаем второй раз
         if not path.exists():
             try:
                 build_result(folder)
