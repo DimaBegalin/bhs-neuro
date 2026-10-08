@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
-"""Собирает «Профориентация BHS.app» и DMG для Mac на Apple Silicon.
+"""Собирает «Профориентация BHS.app» и DMG для Mac.
 
-Запускать на Mac: ``.venv/bin/python tools/build_mac.py``.
+Apple Silicon: ``.venv/bin/python tools/build_mac.py``.
+Universal (Apple Silicon + Intel): ``.venv-universal/bin/python tools/build_mac.py --universal``.
+Окружению Universal нужны universal2-колёса numpy, scipy и Pillow: их нет
+на PyPI, они склеиваются из arm64 и x86_64 через ``delocate-merge``
+(docs/v2/README.md, «Сборка и CI»).
 Ободок на Mac — только через Mind Tracker (SDK на macOS падает), поэтому
 neurosdk в сборку не кладём. Подписи нет (ad-hoc): при первом запуске
 macOS попросит открыть через правый клик → «Открыть».
@@ -35,13 +39,15 @@ def main() -> None:
     defaults.write_text("".join(f"{k}={v}\n" for k, v in settings.items() if v), encoding="utf-8")
     print("облако в сборке:", "настроено" if settings["SUPABASE_URL"] and settings["SUPABASE_ANON_KEY"] else "НЕ настроено")
 
+    universal = "--universal" in sys.argv[1:]
+    arch = "universal2" if universal else "arm64"
     out = DIST / "mac"
     subprocess.run([
         sys.executable, "-m", "PyInstaller",
         "--noconfirm", "--clean", "--windowed",
         "--name", APP,
         "--osx-bundle-identifier", BUNDLE_ID,
-        "--target-arch", "arm64",
+        "--target-arch", arch,
         "--distpath", str(out),
         "--workpath", str(ROOT / "build" / "pyinstaller-mac"),
         "--specpath", str(ROOT / "build"),
@@ -71,7 +77,7 @@ def main() -> None:
     plist_path.write_bytes(plistlib.dumps(plist))
     subprocess.run(["codesign", "--force", "--deep", "--sign", "-", str(app)], check=True)
 
-    dmg = DIST / f"BHS-Profor-{__version__}-mac-arm64.dmg"
+    dmg = DIST / f"BHS-Profor-{__version__}-mac-{'universal' if universal else 'arm64'}.dmg"
     dmg.unlink(missing_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
         stage = Path(tmp) / APP

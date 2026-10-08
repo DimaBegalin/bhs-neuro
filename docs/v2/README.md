@@ -139,7 +139,22 @@ gh run download <id> -n BHS-Profor-Windows-x64 -D dist/profor
 5. Установщик Inno Setup (`windows/BHS-Profor.iss`).
 6. Контрольные суммы.
 
-Mac (Apple Silicon) собирается локально: `.venv/bin/python tools/build_mac.py` → `dist/BHS-Profor-<версия>-mac-arm64.dmg`. Ободок там только через Mind Tracker (`--device ble` по умолчанию), подписи нет: первый запуск — правый клик → «Открыть».
+Mac (Apple Silicon) собирается локально: `.venv/bin/python tools/build_mac.py` → `dist/BHS-Profor-<версия>-mac-arm64.dmg`.
+
+Mac Universal (Apple Silicon + Intel) → `dist/BHS-Profor-<версия>-mac-universal.dmg`, около 120 МБ. Нужно отдельное окружение: numpy, scipy и Pillow на PyPI есть только под одну архитектуру, их склеивают в universal2:
+
+```
+/Library/Frameworks/Python.framework/Versions/3.12/bin/python3.12 -m venv .venv-universal   # Python с python.org — universal2
+.venv-universal/bin/pip install delocate
+for p in arm64 x86_64; do .venv-universal/bin/pip download --only-binary=:all: --no-deps --python-version 3.12 \
+  --implementation cp --platform macosx_12_0_$p -d build/wheels/$p numpy==2.1.3 scipy==1.14.1 pillow==12.3.0; done
+for k in numpy scipy pillow; do .venv-universal/bin/delocate-merge build/wheels/arm64/$k-*.whl build/wheels/x86_64/$k-*.whl -w build/wheels/uni; done
+.venv-universal/bin/pip install build/wheels/uni/*.whl pywebview==6.2.1 pyobjc-framework-CoreBluetooth==12.2.2 \
+  pyobjc-framework-libdispatch==12.2.2 reportlab==4.2.5 chardet==5.2.0 certifi==2026.7.22 "pyinstaller>=6.11,<7"
+.venv-universal/bin/python tools/build_mac.py --universal
+```
+
+numpy и scipy — сборки на OpenBLAS: сборки на Accelerate требуют macOS 14. chardet 5.2.0 — чистый Python, новые версии бинарные. Проверка Intel-части на Apple Silicon: `arch -x86_64 "dist/mac/Профориентация BHS.app/Contents/MacOS/Профориентация BHS" --selftest out.json --selftest-window`. Ободок там только через Mind Tracker (`--device ble` по умолчанию), подписи нет: первый запуск — правый клик → «Открыть».
 
 Настройки облака берутся из секретов репозитория `SUPABASE_URL` и `SUPABASE_ANON_KEY`. Версия хранится в `app/__init__.py`, сейчас 2.0.0.
 
