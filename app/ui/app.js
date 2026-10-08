@@ -369,9 +369,12 @@ function showConsent() {
       ctx.content = await call("session_content");
       ctx.startedAt = Date.now();
       await runPlan(result.plan);
-      const done = await call("session_finish");
+      // завершение (запись, итог, PDF) идёт, пока ученик видит «Готово»: иначе экран
+      // замирал на последнем вопросе и казалось, что ответ не нажимается
+      const finishing = call("session_finish");
+      finishing.catch(() => {});
       await showStudentDone();
-      showSummary(done);
+      showSummary(await finishing);
     } catch (error) {
       showHome(`Сессию не удалось начать: ${error.message}`);
     }

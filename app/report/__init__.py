@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from datetime import datetime
 from pathlib import Path
 
@@ -39,7 +40,14 @@ def save_comment(folder: Path, text: str, author: str = "") -> dict | None:
     return comment
 
 
-def make_reports(folder: Path, result: dict | None = None) -> dict:
+def _roadmap(folder: Path, model: dict) -> None:
+    try:  # печатает браузер: его сбой не должен ломать основные отчёты
+        make_roadmap(folder, model)
+    except Exception:
+        log.exception("дорожная карта %s", folder.name)
+
+
+def make_reports(folder: Path, result: dict | None = None, roadmap_wait: bool = False) -> dict:
     """Пишет в папку сессии PDF для родителя (с комментарием, если он есть),
     PDF для профориентолога и HTML для облака. Возвращает модель."""
     folder = Path(folder)
@@ -50,8 +58,8 @@ def make_reports(folder: Path, result: dict | None = None) -> dict:
     render_parent(model, folder / PARENT_PDF)
     render_manager(model, folder / MANAGER_PDF)
     atomic_write_bytes(folder / PARENT_HTML, render_parent_html(model).encode("utf-8"))
-    try:  # печатает браузер: его сбой не должен ломать основные отчёты
-        make_roadmap(folder, model)
-    except Exception:
-        log.exception("дорожная карта %s", folder.name)
+    if roadmap_wait:
+        _roadmap(folder, model)
+    else:  # Chrome печатает секунды, а на первом запуске дольше: завершение теста его не ждёт
+        threading.Thread(target=_roadmap, args=(folder, model), name="roadmap", daemon=True).start()
     return model

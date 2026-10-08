@@ -151,7 +151,7 @@ class Api:
         if not path.exists():
             try:
                 build_result(folder)
-                make_reports(folder)
+                make_reports(folder, roadmap_wait=kind == "roadmap")
             except Exception as error:
                 return {"error": f"отчёт не собран: {error}"}
         if not path.exists():  # дорожная карта: класс без шаблона или нет Chrome/Edge

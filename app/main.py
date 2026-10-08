@@ -118,6 +118,10 @@ def selftest(out: Path, window: bool, sessions_root: Path | None = None) -> int:
         folder = Path(api._store.root) / started["id"]
         report["reports"] = all((folder / name).exists() for name in (PARENT_PDF, MANAGER_PDF))
         from app.report import ROADMAP_PDF
+        for _ in range(120):  # печатается в фоне
+            if (folder / ROADMAP_PDF).exists():
+                break
+            time.sleep(0.5)
         report["roadmap"] = (folder / ROADMAP_PDF).exists()  # нужен Chrome или Edge, поэтому не входит в ok
         try:
             import neurosdk  # noqa: F401  SDK ободка должен быть внутри сборки

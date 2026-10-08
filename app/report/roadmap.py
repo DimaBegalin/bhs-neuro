@@ -14,6 +14,7 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
 from html import escape as e
 from pathlib import Path
 
@@ -26,6 +27,7 @@ log = logging.getLogger(__name__)
 ROADMAP_PDF = "дорожная-карта.pdf"
 ROADMAP_HTML = "дорожная-карта.html"
 FONTS = BUNDLE_ROOT / "app" / "ui" / "fonts"
+_printing = threading.Lock()  # фоновая печать и кнопка не запускают браузер одновременно
 
 PATHWAY = ["Career Guidance", "Academic Planning", "Portfolio", "University List", "Personal Statement", "Application"]
 PRINCIPLES = [("Дать попробовать", "Проекты, конкурсы, дебаты, волонтёрство и реальные задачи."),
@@ -367,7 +369,11 @@ def make_roadmap(folder: Path, model: dict) -> Path | None:
     """Дорожная карта в папку сессии. None — класс без шаблона или нет браузера."""
     if model["student"].get("grade") not in GRADES:
         return None
-    folder = Path(folder)
+    with _printing:
+        return _print(Path(folder), model)
+
+
+def _print(folder: Path, model: dict) -> Path | None:
     html = folder / ROADMAP_HTML
     html.write_text(render_roadmap_html(model), encoding="utf-8")
     browser = _browser()
@@ -377,6 +383,7 @@ def make_roadmap(folder: Path, model: dict) -> Path | None:
     pdf = folder / ROADMAP_PDF
     tmp = folder / ".дорожная-карта.tmp.pdf"
     subprocess.run([browser, "--headless=new", "--disable-gpu", "--no-pdf-header-footer", "--no-first-run",
+                    "--use-mock-keychain", "--password-store=basic", "--disable-extensions",
                     "--allow-file-access-from-files", f"--user-data-dir={folder / '.browser'}",
                     f"--print-to-pdf={tmp}", html.as_uri()],
                    check=True, capture_output=True, timeout=90,
