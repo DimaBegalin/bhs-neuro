@@ -11,11 +11,13 @@ import threading
 from dataclasses import asdict
 
 import random
+from pathlib import Path
 import sys
 
 from app import __version__, content
 from app.battery.plan import plan_for
-from app.report import MANAGER_PDF, PARENT_PDF, ROADMAP_PDF, load_comment, make_reports, save_comment
+from app.report import (MANAGER_PDF, PARENT_PDF, ROADMAP_PDF, export_session, load_comment,
+                        make_reports, save_comment)
 from app.report.roadmap import wait_printing
 from app.report.model import build_model
 from app.storage import read_json
@@ -199,6 +201,22 @@ class Api:
         _open_path(folder / PARENT_PDF)
         return {"ok": True, "comment": comment}
 
+    def session_export(self, session_id: str) -> dict:
+        """Три PDF и ответы одним ZIP в «Загрузки», файл показывается в Finder/Проводнике."""
+        folder = self._folder(session_id)
+        if folder is None:
+            return {"error": "нет такой сессии"}
+        try:
+            if not (folder / PARENT_PDF).exists():
+                build_result(folder)
+                make_reports(folder, roadmap_wait=True)
+            path = export_session(folder, Path.home() / "Downloads")
+        except Exception as error:
+            log.exception("выгрузка %s", session_id)
+            return {"error": f"не удалось собрать архив: {error}"}
+        _reveal(path)
+        return {"ok": True, "path": str(path)}
+
     def show_folder(self, session_id: str) -> dict:
         folder = self._folder(session_id)
         if folder is None:
@@ -265,6 +283,18 @@ class Api:
             return {"error": f"нет действия {name}"}
         action(*args)
         return {"ok": True}
+
+
+def _reveal(path) -> None:
+    """Показать файл в Finder или Проводнике, выделив его."""
+    import subprocess
+    import sys
+    if sys.platform == "win32":
+        subprocess.Popen(["explorer", "/select,", str(path)])
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", "-R", str(path)])
+    else:
+        _open_path(Path(path).parent)
 
 
 def _open_path(path) -> None:

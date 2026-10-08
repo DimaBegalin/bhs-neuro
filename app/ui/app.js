@@ -304,10 +304,26 @@ function resultBlock(summary) {
     h("div", { class: "row" },
       h("button", { onclick: () => api.open_report(summary.id, "manager") }, "PDF для профориентолога"),
       roadmapButton(summary),
+      exportButton(summary),
       h("button", { class: "ghost", onclick: () => api.show_folder(summary.id) }, "Папка сессии")),
     ...items,
     clusters.length ? h("h3", {}, "Направления и профессии") : null, ...clusters,
     commentBlock(summary));
+}
+
+// три PDF и ответы одним ZIP в «Загрузки»
+function exportButton(summary) {
+  const note = h("span", { class: "muted" });
+  const button = h("button", { onclick: async () => {
+    button.disabled = true;
+    note.className = "muted";
+    note.textContent = "Собираю архив…";
+    const res = await api.session_export(summary.id);
+    button.disabled = false;
+    note.className = res.error ? "error" : "muted";
+    note.textContent = res.error || `Сохранено в «Загрузки»: ${res.path.split(/[\\/]/).pop()}`;
+  } }, "Скачать всё");
+  return h("span", { class: "row" }, button, note);
 }
 
 // дорожная карта BHS — для 8–10 класса, печатается вместе с отчётами

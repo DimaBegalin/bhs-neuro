@@ -63,3 +63,64 @@ def make_reports(folder: Path, result: dict | None = None, roadmap_wait: bool = 
     else:  # Chrome печатает секунды, а на первом запуске дольше: завершение теста его не ждёт
         threading.Thread(target=_roadmap, args=(folder, model), name="roadmap", daemon=True).start()
     return model
+
+
+ANSWERS_CSV = "ответы.csv"
+BLOCKS = (("interest_answer", "Интересы", "interests"), ("bigfive_answer", "Стиль работы", "bigfive"))
+
+
+def answers_csv(folder: Path) -> bytes:
+    """Ответы ученика таблицей для Excel: блок, утверждение, ответ, время.
+
+    Повторный ответ на тот же пункт («Назад») заменяет прежний, как в итоге.
+    """
+    import csv
+    import io
+
+    from app import content
+
+    folder = Path(folder)
+    lang = (read_json(folder / "meta.json", {}).get("student") or {}).get("lang", "ru")
+    events = read_json(folder / "events.json", [])
+    out = io.StringIO()
+    writer = csv.writer(out, delimiter=";")  # Excel с русской локалью делит по «;»
+    writer.writerow(["Блок", "№", "Утверждение", "Ответ", "Ответ словами", "Время ответа, с"])
+    for kind, title, name in BLOCKS:
+        if not content.available(name):
+            continue
+        data = content.load(name)
+        texts = {i["id"]: i["text"].get(lang) or i["text"]["ru"] for i in data["items"]}
+        labels = data["scale"].get(lang) or data["scale"]["ru"]
+        answers: dict[str, dict] = {}
+        for event in events:
+            if event["kind"] == kind:
+                answers[event["payload"]["item"]] = event["payload"]
+        for n, (item, p) in enumerate(answers.items(), start=1):
+            value = int(p["value"])
+            rt = p.get("rt_ms")
+            writer.writerow([title, n, texts.get(item, item), value, labels[value - 1],
+                             "" if rt is None else f"{rt / 1000:.1f}".replace(".", ",")])
+    return out.getvalue().encode("utf-8-sig")  # BOM: Excel сразу видит кириллицу
+
+
+def export_session(folder: Path, dest_dir: Path) -> Path:
+    """Всё по сессии одним ZIP: три PDF и ответы. Сырой ЭЭГ в нём нет (ADR 0003)."""
+    import re
+    import zipfile
+
+    from app.report.roadmap import wait_printing
+
+    folder = Path(folder)
+    wait_printing()  # дорожная карта могла ещё печататься в фоне после теста
+    meta = read_json(folder / "meta.json", {})
+    student = meta.get("student") or {}
+    stem = f"{student.get('name', 'ученик')} {student.get('grade', '')} класс {(meta.get('started_at') or '')[:10]}"
+    stem = re.sub(r'[\\/:*?"<>|]+', " ", stem).strip()
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / f"BHS {stem}.zip"
+    with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as z:
+        for name in (PARENT_PDF, MANAGER_PDF, ROADMAP_PDF):
+            if (folder / name).exists():
+                z.write(folder / name, name)
+        z.writestr(ANSWERS_CSV, answers_csv(folder))
+    return dest
