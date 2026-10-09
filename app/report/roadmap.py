@@ -137,6 +137,161 @@ GRADES = {
 
 
 
+# Казахский вариант: тот же шаблон, тексты — черновик разработки, вычитывает носитель
+PRINCIPLES_KK = [("Байқап көруге мүмкіндік беру", "Жобалар, байқаулар, дебаттар, еріктілік және нақты міндеттер."),
+                 ("Көруге мүмкіндік беру", "Мамандықтар, университеттер, сарапшылармен кездесулер және кәсіби орта."),
+                 ("Уақыт беру", "Жасөспірімнің қызығушылықтары өзгереді. Түпкілікті таңдауды асықтырмаған жөн.")]
+
+GRADES_KK = {
+    8: {
+        "stage": "EXPLORE", "stage_ru": "Зерттеу", "pathway_step": 0,
+        "headline": "{name}: Гарвардқа жол басталатын күшті жақтар",
+        "lead": "Қызығушылықтар алғашқы саналы қадамдарға айналады.",
+        "hero": "Гарвард? Неге болмасқа. Балаңызда Гарвард пен әлемнің топ-10 университетіне түсу үшін дамытуға "
+                "болатын қасиеттер, қызығушылықтар және күшті жақтар қазірдің өзінде бар. 8-сынып — өзіңді зерттеп, "
+                "қызықты бағыттарды тауып, алғашқы SAT-ты тапсыратын уақыт.",
+        "comment": "8-сыныпта баланы түпкілікті таңдауға асықтырмаған жөн. Басты міндет — ой-өрісті кеңейту, әртүрлі "
+                   "бағыттарды байқап көру және қайсысында тереңірек дамығысы келетінін байқау.",
+        "profile_note": "Диагностика қорытындысы бойынша тереңірек зерттеуге тұрарлық бағыттар.",
+        "second": "Нені байқап көргім келеді",
+        "task_title": "Зерттеу және байқап көру",
+        "task": "8-сыныпта оқушы өз қызығушылықтарын нақты іс арқылы түсіне бастайды: жобалар, үйірмелер, байқаулар, "
+                "еріктілік, мамандармен кездесулер және жаңа білім алу мүмкіндіктері.",
+        "actions": [
+            ("Кәсіби бағдар диагностикасынан өту", "қыркүйек"),
+            ("Зерттеуге қызықты 2–3 бағытты анықтау", "қазан"),
+            ("BHS-те SAT-қа дайындықты бастап, бастапқы баллды білу үшін алғашқы SAT-ты тапсыру", "мамырға дейін"),
+            ("9-сыныпта IELTS-ке дайындықты бастау үшін ағылшын тілімен жүйелі айналысу", "жыл бойы"),
+            ("Жаңа сабақтан тыс іс-әрекетті (extracurricular) байқап көру", "1-жартыжылдық"),
+            ("Кемінде бір жобаға немесе байқауға қатысу", "сәуірге дейін"),
+            ("Кәсіби бағдар іс-шарасына немесе университетпен кездесуге бару", "жыл бойы"),
+            ("Жетістіктерді, жобалар мен сертификаттарды тіркеп отыруды бастау", "қыркүйектен"),
+        ],
+        "result": "8-сыныптың соңына қарай оқушы өз қызығушылықтарын жақсырақ түсінеді, оның бірнеше сынақ "
+                  "іс-әрекеті және 9-сыныпта саналы түрде алға жылжуға көмектесетін алғашқы нәтижелері болады.",
+        "parents": "8-сыныпта отбасының міндеті — бала үшін мамандық таңдау емес, оның өз қызығушылықтарын қауіпсіз "
+                   "зерттеп, күшті жақтарын көруіне жағдай жасау.",
+        "next": ("9-сынып · BUILD", "Бағыттарды таңдау, SAT-ты қайта тапсыру, IELTS-ке дайындықты бастау және ұзақ мерзімді жоба бастау."),
+    },
+    9: {
+        "stage": "BUILD", "stage_ru": "Құру", "pathway_step": 1,
+        "headline": "{name} Гарвард пен әлемнің топ-10 университетіне түсетін бейін құруда",
+        "lead": "Енді қызығушылықтар алғашқы нақты жетістіктерге айналады.",
+        "hero": "Гарвард? Бұл мүмкін. Мықты үміткердің бейіні соңғы жылы емес, қадам-қадаммен құрылады. 9-сынып — "
+                "неге күш салатыныңды таңдап, қабылдау комиссиясы көретін нәтижелерді жасай бастайтын уақыт.",
+        "comment": "9-сыныпта жай зерттеуден саналы таңдауға көшу маңызды. Балаға нақты мамандықты білу міндетті емес, "
+                   "бірақ тереңірек дамытқысы келетін 1–2 бағытты анықтап, солардың айналасында өз бейінін құра бастаған жөн.",
+        "profile_note": "Диагностика қорытындысы бойынша ең перспективалы бағыттар.",
+        "second": "Нені дамыту керек",
+        "task_title": "Бейін қалыптастыру",
+        "task": "1–2 бағытты таңдап, солардың айналасында жобаларды, сабақтан тыс іс-әрекеттерді және алғашқы "
+                "жетістіктерді құру. Көптеген бір реттік әрекеттен гөрі жыл бойы дамитын бір іс жақсы.",
+        "actions": [
+            ("Қызығушылықтың 1–2 негізгі бағытын таңдау", "қыркүйек–қазан"),
+            ("SAT-ты қайта тапсырып, 8-сыныппен салыстырғанда баллды көтеру", "мамырға дейін"),
+            ("BHS-те IELTS-ке дайындықты бастау", "қаңтардан"),
+            ("Өзіңнің ұзақ мерзімді жобаңды бастау", "1-жартыжылдық"),
+            ("Жүйелі дамыту үшін бір сабақтан тыс іс-әрекетті таңдау", "қыркүйек"),
+            ("Байқауларға, олимпиадаларға, конференцияларға немесе әлеуметтік бастамаларға қатысу", "жыл бойы"),
+            ("Көшбасшы рөлінде өзіңді байқап көру", "жыл бойы"),
+            ("Қызықтыратын елдер мен білім беру жүйелерін анықтау", "мамырға дейін"),
+            ("Жетістіктер мен нәтижелердің бірыңғай тізімін жүргізу", "үнемі"),
+        ],
+        "result": "9-сыныптың соңына қарай оқушының түсінікті қызығушылық бағыты, оны растайтын бірнеше іс-әрекеті "
+                  "және мақтануға болатын алғашқы нәтижелері болады.",
+        "parents": "Балаңызға іс-әрекеттердің санын емес, сапасы мен мағынасын таңдауға көмектесіңіз. Он бір реттік "
+                   "сертификаттан гөрі жыл бойы дамитын бір жоба жақсы.",
+        "next": ("10-сынып · STRENGTHEN", "SAT пен IELTS-ті жоғары баллмен тапсыру, ұсыным хаттар, қаңтардан бастап эссе."),
+    },
+    10: {
+        "stage": "STRENGTHEN", "stage_ru": "Күшейту", "pathway_step": 2,
+        "headline": "{name} Гарвард пен әлемнің топ-10 университеті деңгейіндегі өтінімге дайындалуда",
+        "lead": "Қызығушылықтан оқуға түсу стратегиясына көшу басталады.",
+        "hero": "Гарвард? Дайындалатын уақыт келді. 10-сынып — шешуші жыл: SAT пен IELTS-ті жоғары баллмен тапсыру, "
+                "ұсыным хаттар және қаңтардан бастап эссе. Бұл бағдарламаның бәрі BHS-те бар.",
+        "comment": "10-сыныпта оқушының бейіні тұтас бола бастауы керек. Қызығушылықтар, оқу нәтижелері, сабақтан тыс "
+                   "іс-әрекеттер және көшбасшылық тәжірибе бірте-бірте үміткердің түсінікті тарихына айналады.",
+        "profile_note": "Диагностика қорытындысы бойынша ең перспективалы бағыттар.",
+        "second": "Нені дамыту керек",
+        "task_title": "Бейінді күшейту",
+        "task": "Оқу жылының соңына дейін SAT пен IELTS-ті жоғары баллмен тапсыру, ұсыным хаттар алу және қаңтардан "
+                "бастап эссемен жұмысты бастау. Мұның бәрі жобалар мен көшбасшылық тәжірибемен бірге үміткердің "
+                "түсінікті тарихын құрайды.",
+        "actions": [
+            ("Академиялық бағытты анықтап, университеттердің алдын ала тізімін жасау", "қыркүйек–қазан"),
+            ("SAT-ты жоғары баллмен тапсыру: топ-10 университет үшін бағдар — 1500+", "жыл соңына дейін"),
+            ("IELTS-ті жоғары баллмен тапсыру: бағдар — 7.5+", "жыл соңына дейін"),
+            ("Екі мұғалімнен және мектеп кеңесшісінен ұсыным хаттар алу", "мамырға дейін"),
+            ("Эссемен жұмысты бастау: Personal Statement және университеттердің қосымша эсселері", "қаңтардан"),
+            ("Жобада немесе ұйымда көшбасшы рөлін алу", "жыл бойы"),
+            ("1–2 негізгі сабақтан тыс іс-әрекетті күшейту, халықаралық байқауларға қатысу", "жыл бойы"),
+            ("Жетістіктер портфолиосын жинау", "мамырға қарай"),
+        ],
+        "result": "10-сыныптың соңына қарай оқушының SAT пен IELTS баллдары, ұсыным хаттары, эссенің жобасы және "
+                  "университеттердің алдын ала тізімі болады. 11-сыныпта тек соңғы өтінім беру қалады.",
+        "parents": "10-сыныпта «қайда түсу керек?» деген сұрақтан «университет менің баламнан қандай үміткерді көруі "
+                   "керек?» деген сұраққа көшу ерекше маңызды.",
+        "next": ("11-сынып · APPLY", "Университеттердің соңғы тізімі, эссені пысықтау, стипендиялар және өтінім беру."),
+    },
+}
+
+# подписи шаблона; {g} — номер класса
+LABELS = {
+    "ru": {
+        "grade": "{g} класс", "GRADE": "{g} КЛАСС", "student": "УЧЕНИК", "date": "ДАТА ДИАГНОСТИКИ",
+        "s1": "Что показала диагностика",
+        "s1_note": "Результаты помогают увидеть актуальные интересы, сильные стороны и возможные направления "
+                   "развития. Они не определяют профессию и не являются прогнозом гарантированного поступления.",
+        "profile": "МОЙ ПРОФИЛЬ ИНТЕРЕСОВ", "result": "РЕЗУЛЬТАТ", "comment": "КОММЕНТАРИЙ ПРОФОРИЕНТАТОРА BHS",
+        "s2": "Мой Career Profile", "clusters": "ПОДХОДЯЩИЕ НАПРАВЛЕНИЯ И ПРОФЕССИИ", "strengths": "СИЛЬНЫЕ СТОРОНЫ",
+        "s3": "Моя главная задача на этот год",
+        "plan_note": "Отмечайте статус по мере движения и сверяйтесь с профориентатором BHS раз в четверть.",
+        "action": "ДЕЙСТВИЕ", "when": "СРОК", "status": "МОЙ СТАТУС",
+        "statuses": ("Начал(а)", "В процессе", "Готово"),
+        "year_result": "Мой главный результат к концу учебного года",
+        "s5": "Рекомендации родителям", "principles": "ТРИ ПРИНЦИПА BHS",
+        "all_in_title": "ВСЯ ПРОГРАММА — В BHS",
+        "all_in": "Подготовка к SAT и IELTS, работа над эссе, рекомендательные письма, проекты, конкурсы и список "
+                  "университетов — весь Career & University Roadmap ученик проходит внутри Beta High School, вместе "
+                  "с профориентатором и учителями. Отдельные курсы искать не нужно.",
+        "final_title": "ФИНАЛЬНЫЙ КОММЕНТАРИЙ ПРОФОРИЕНТАТОРА",
+        "final": "Ваш следующий шаг — обсудить результаты диагностики с профориентатором BHS и определить 3–5 "
+                 "конкретных действий на ближайшие 90 дней. Именно последовательные маленькие шаги со временем "
+                 "формируют сильную образовательную траекторию.",
+        "disclaimer": "Важно: диагностика отражает актуальные интересы и особенности профиля ученика. Она не является "
+                      "медицинским или психологическим заключением и не гарантирует поступление в конкретный "
+                      "университет. Итоговые решения принимаются учеником и семьёй совместно со специалистами.",
+        "interest": "{name} интерес — {desc}",
+    },
+    "kk": {
+        "grade": "{g}-сынып", "GRADE": "{g}-СЫНЫП", "student": "ОҚУШЫ", "date": "ДИАГНОСТИКА КҮНІ",
+        "s1": "Диагностика нені көрсетті",
+        "s1_note": "Нәтижелер оқушының қазіргі қызығушылықтарын, күшті жақтарын және мүмкін даму бағыттарын көруге "
+                   "көмектеседі. Олар мамандықты анықтамайды және оқуға түсуге кепілдік бермейді.",
+        "profile": "МЕНІҢ ҚЫЗЫҒУШЫЛЫҚТАР БЕЙІНІМ", "result": "НӘТИЖЕ", "comment": "BHS КӘСІБИ БАҒДАР МАМАНЫНЫҢ ПІКІРІ",
+        "s2": "Менің Career Profile-ім", "clusters": "ҚОЛАЙЛЫ БАҒЫТТАР МЕН МАМАНДЫҚТАР", "strengths": "КҮШТІ ЖАҚТАРЫ",
+        "s3": "Осы жылғы басты міндетім",
+        "plan_note": "Орындалуына қарай белгі қойып отырыңыз және тоқсан сайын BHS кәсіби бағдар маманымен ақылдасыңыз.",
+        "action": "ӘРЕКЕТ", "when": "МЕРЗІМ", "status": "КҮЙІ",
+        "statuses": ("Бастадым", "Орындалуда", "Дайын"),
+        "year_result": "Оқу жылының соңындағы басты нәтижем",
+        "s5": "Ата-аналарға кеңестер", "principles": "BHS-ТІҢ ҮШ ҚАҒИДАСЫ",
+        "all_in_title": "БҮКІЛ БАҒДАРЛАМА — BHS-ТЕ",
+        "all_in": "SAT пен IELTS-ке дайындық, эссемен жұмыс, ұсыным хаттар, жобалар, байқаулар және университеттер "
+                  "тізімі — Career & University Roadmap-тың бәрін оқушы Beta High School ішінде, кәсіби бағдар "
+                  "маманымен және мұғалімдермен бірге өтеді. Бөлек курс іздеудің қажеті жоқ.",
+        "final_title": "КӘСІБИ БАҒДАР МАМАНЫНЫҢ ҚОРЫТЫНДЫ ПІКІРІ",
+        "final": "Келесі қадамыңыз — диагностика нәтижелерін BHS кәсіби бағдар маманымен талқылап, алдағы 90 күнге "
+                 "3–5 нақты әрекетті белгілеу. Уақыт өте келе мықты білім траекториясын дәл осындай жүйелі шағын "
+                 "қадамдар қалыптастырады.",
+        "disclaimer": "Маңызды: диагностика оқушының қазіргі қызығушылықтары мен бейінінің ерекшеліктерін көрсетеді. "
+                      "Ол медициналық немесе психологиялық қорытынды емес және белгілі бір университетке түсуге "
+                      "кепілдік бермейді. Түпкілікті шешімді оқушы мен отбасы мамандармен бірге қабылдайды.",
+        "interest": "{name} қызығушылық — {desc}",
+    },
+}
+
+
 def _css(fonts: str) -> str:
     return f"""
 @font-face {{ font-family: Halvar; src: url("{fonts}/HalvarBreit-Rg.woff2"); font-weight: 400; }}
@@ -241,12 +396,14 @@ def logo() -> str:
             '<span>CAREER GUIDANCE</span></div></div>')
 
 
-def foot(n: int, grade: int, stage: str) -> str:
-    return f'<div class="foot"><span>BETA HIGH SCHOOL · CAREER & UNIVERSITY ROADMAP</span><span>{grade} КЛАСС · {stage} · {n} / 4</span></div>'
+def foot(n: int, grade: int, stage: str, lang: str = "ru") -> str:
+    g = LABELS[lang]["GRADE"].format(g=grade)
+    return f'<div class="foot"><span>BETA HIGH SCHOOL · CAREER & UNIVERSITY ROADMAP</span><span>{g} · {stage} · {n} / 4</span></div>'
 
 
-def top(grade: int, g: dict, dark=False) -> str:
-    return f'<div class="top{" dark" if dark else ""}">{logo()}<div class="badge">{grade} КЛАСС · {g["stage"]}</div></div>'
+def top(grade: int, g: dict, dark=False, lang: str = "ru") -> str:
+    badge = LABELS[lang]["GRADE"].format(g=grade)
+    return f'<div class="top{" dark" if dark else ""}">{logo()}<div class="badge">{badge} · {g["stage"]}</div></div>'
 
 
 
@@ -276,24 +433,27 @@ def _data(model: dict) -> dict:
     rec = result["recommendation"]
     types = sorted(model["interests"]["types"], key=lambda t: -t["score"])
     flat = result["interests"]["level"] == "flat" or not rec["top"]
-    strengths = [] if flat else [f"{t['name']} интерес — {t['desc']}" for t in types[:2]]
+    lang = model["lang"] if model.get("lang") in LABELS else "ru"
+    strengths = [] if flat else [LABELS[lang]["interest"].format(name=t["name"], desc=t["desc"]) for t in types[:2]]
     style = _style_scores(result.get("work_style"))
     if style:
         best = max(style, key=style.get)
         if style[best] >= STYLE_STRONG:
-            strengths.append(f"{STYLE[best]['ru']} — {STYLE_STRENGTH[best]['ru']}")
-    steps = (list(T["flat_steps"]["ru"]) if flat else
-             [NEXT_STEPS[c]["ru"][0] for c in rec["top"]][:3])
+            strengths.append(f"{STYLE[best][lang]} — {STYLE_STRENGTH[best][lang]}")
+    steps = (list(T["flat_steps"][lang]) if flat else
+             [NEXT_STEPS[c][lang][0] for c in rec["top"]][:3])
     return {"name": model["student"]["name"], "grade": model["student"]["grade"], "date": model["date"],
             "types": types, "clusters": [] if flat else model["clusters"], "flat": flat,
-            "strengths": strengths or [T["no_strength"]["ru"]], "steps": steps,
+            "strengths": strengths or [T["no_strength"][lang]], "steps": steps, "lang": lang,
             "comment": (model.get("comment") or {}).get("text")}
 
 
 def render_roadmap_html(model: dict) -> str:
     d = _data(model)
-    grade = d["grade"]
-    g = GRADES[grade]
+    grade, lang = d["grade"], d["lang"]
+    L = LABELS[lang]
+    g = (GRADES_KK if lang == "kk" else GRADES)[grade]
+    principles_text = PRINCIPLES_KK if lang == "kk" else PRINCIPLES
     headline = e(g["headline"].replace("{name}", d["name"]))
     top2 = {t["type"] for t in d["types"][:2]} if not d["flat"] else set()
     profile_rows = "".join(
@@ -302,75 +462,76 @@ def render_roadmap_html(model: dict) -> str:
         for t in d["types"])
     clusters = ("".join(f'<div class="cluster"><b>{i}. {e(c["title"])}</b><span>{e(", ".join(c["professions"]) or "—")}</span></div>'
                         for i, c in enumerate(d["clusters"], 1))
-                or f'<p>{e(T["interests_flat"]["ru"])}</p>')
-    strengths = "".join(f"<li>{e(s)}</li>" for s in d["strengths"])
-    steps = "".join(f"<li>{e(s)}</li>" for s in d["steps"])
+                or f'<p>{e(T["interests_flat"][lang])}</p>')
+    strengths = "".join(f"<li>{e(x)}</li>" for x in d["strengths"])
+    steps = "".join(f"<li>{e(x)}</li>" for x in d["steps"])
+    statuses = "".join(f'<span><i class="box"></i>{e(x)}</span>' for x in L["statuses"])
     actions = "".join(
-        f'<tr><td><i class="box"></i></td><td>{e(a)}</td><td class="when">{e(w)}</td><td class="status">'
-        '<span><i class="box"></i>Начал(а)</span><span><i class="box"></i>В процессе</span><span><i class="box"></i>Готово</span></td></tr>'
+        f'<tr><td><i class="box"></i></td><td>{e(a)}</td><td class="when">{e(w)}</td><td class="status">{statuses}</td></tr>'
         for a, w in g["actions"])
-    principles = "".join(f'<div><b>0{i}</b><h3>{t.upper()}</h3><p>{e(x)}</p></div>' for i, (t, x) in enumerate(PRINCIPLES, 1))
+    principles = "".join(f'<div><b>0{i}</b><h3>{e(t.upper())}</h3><p>{e(x)}</p></div>'
+                         for i, (t, x) in enumerate(principles_text, 1))
     path = "".join(f'<span class="{"on" if i == g["pathway_step"] else ""}">{p.upper()}</span>' for i, p in enumerate(PATHWAY))
     hero_title, hero_rest = g["hero"].split(". ", 1)
     st = g["stage"]
+
+    def head(dark: bool = False) -> str:
+        return top(grade, g, dark=dark, lang=lang)
+
+    def bottom(n: int) -> str:
+        return foot(n, grade, st, lang)
+
     body = f"""
 <section class="page">
   <div class="cover">
-    {top(grade, g, dark=True)}
-    <div class="kicker">CAREER & UNIVERSITY ROADMAP · {g["stage_ru"].upper()}</div>
+    {head(dark=True)}
+    <div class="kicker">CAREER & UNIVERSITY ROADMAP · {e(g["stage_ru"].upper())}</div>
     <h1>{headline}</h1>
     <p class="lead">{e(g["lead"])}</p>
-    <div class="fields"><div class="field">УЧЕНИК<br><span class="val">{e(d["name"])}, {grade} класс</span></div>
-      <div class="field">ДАТА ДИАГНОСТИКИ<br><span class="val">{e(d["date"])}</span></div></div>
+    <div class="fields"><div class="field">{L["student"]}<br><span class="val">{e(d["name"])}, {e(L["grade"].format(g=grade))}</span></div>
+      <div class="field">{L["date"]}<br><span class="val">{e(d["date"])}</span></div></div>
   </div>
   <div class="hero"><p><b>{e(hero_title)}.</b>{e(hero_rest)}</p></div>
-  <h2><span class="n">01</span>Что показала диагностика</h2>
-  <p class="note">Результаты помогают увидеть актуальные интересы, сильные стороны и возможные направления развития.
-  Они не определяют профессию и не являются прогнозом гарантированного поступления.</p>
-  <table><tr><th>МОЙ ПРОФИЛЬ ИНТЕРЕСОВ</th><th class="score">РЕЗУЛЬТАТ</th></tr>{profile_rows}</table>
-  <div class="comment"><b>КОММЕНТАРИЙ ПРОФОРИЕНТАТОРА BHS</b>{e(d["comment"] or g["comment"])}</div>
-  {foot(1, grade, st)}
+  <h2><span class="n">01</span>{e(L["s1"])}</h2>
+  <p class="note">{e(L["s1_note"])}</p>
+  <table><tr><th>{L["profile"]}</th><th class="score">{L["result"]}</th></tr>{profile_rows}</table>
+  <div class="comment"><b>{L["comment"]}</b>{e(d["comment"] or g["comment"])}</div>
+  {bottom(1)}
 </section>
 <section class="page">
-  {top(grade, g)}
-  <h2><span class="n">02</span>Мой Career Profile</h2>
+  {head()}
+  <h2><span class="n">02</span>{e(L["s2"])}</h2>
   <p class="note">{e(g["profile_note"])}</p>
-  <div class="card"><span class="label">ПОДХОДЯЩИЕ НАПРАВЛЕНИЯ И ПРОФЕССИИ</span>{clusters}</div>
-  <div class="card"><span class="label">СИЛЬНЫЕ СТОРОНЫ</span><ol class="filled">{strengths}</ol></div>
+  <div class="card"><span class="label">{L["clusters"]}</span>{clusters}</div>
+  <div class="card"><span class="label">{L["strengths"]}</span><ol class="filled">{strengths}</ol></div>
   <div class="card"><span class="label">{e(g["second"]).upper()}</span><ol class="filled">{steps}</ol></div>
-  <h2><span class="n">03</span>Моя главная задача на этот год</h2>
+  <h2><span class="n">03</span>{e(L["s3"])}</h2>
   <div class="task"><h3>{e(g["task_title"])}</h3><p>{e(g["task"])}</p></div>
-  {foot(2, grade, st)}
+  {bottom(2)}
 </section>
 <section class="page">
-  {top(grade, g)}
+  {head()}
   <h2><span class="n">04</span>Action Plan</h2>
-  <p class="note">Отмечайте статус по мере движения и сверяйтесь с профориентатором BHS раз в четверть.</p>
-  <table class="plan"><tr><th></th><th>ДЕЙСТВИЕ</th><th>СРОК</th><th class="status">МОЙ СТАТУС</th></tr>{actions}</table>
-  <div class="result"><h3>Мой главный результат к концу учебного года</h3><p>{e(g["result"])}</p></div>
-  {foot(3, grade, st)}
+  <p class="note">{e(L["plan_note"])}</p>
+  <table class="plan"><tr><th></th><th>{L["action"]}</th><th>{L["when"]}</th><th class="status">{L["status"]}</th></tr>{actions}</table>
+  <div class="result"><h3>{e(L["year_result"])}</h3><p>{e(g["result"])}</p></div>
+  {bottom(3)}
 </section>
 <section class="page">
-  {top(grade, g)}
-  <h2><span class="n">05</span>Рекомендации родителям</h2>
+  {head()}
+  <h2><span class="n">05</span>{e(L["s5"])}</h2>
   <p class="quote">{e(g["parents"])}</p>
-  <span class="label">ТРИ ПРИНЦИПА BHS</span>
+  <span class="label">{L["principles"]}</span>
   <div class="principles">{principles}</div>
   <h2><span class="n">06</span>BHS Pathway</h2>
   <div class="path">{path}</div>
   <div class="next"><b>{e(g["next"][0])}</b><span>{e(g["next"][1])}</span></div>
-  <div class="all-in"><b>ВСЯ ПРОГРАММА — В BHS</b>Подготовка к SAT и IELTS, работа над эссе, рекомендательные письма,
-  проекты, конкурсы и список университетов — весь Career & University Roadmap ученик проходит внутри
-  Beta High School, вместе с профориентатором и учителями. Отдельные курсы искать не нужно.</div>
-  <div class="comment"><b>ФИНАЛЬНЫЙ КОММЕНТАРИЙ ПРОФОРИЕНТАТОРА</b>Ваш следующий шаг — обсудить результаты диагностики
-  с профориентатором BHS и определить 3–5 конкретных действий на ближайшие 90 дней. Именно последовательные
-  маленькие шаги со временем формируют сильную образовательную траекторию.</div>
-  <p class="disclaimer">Важно: диагностика отражает актуальные интересы и особенности профиля ученика. Она не является
-  медицинским или психологическим заключением и не гарантирует поступление в конкретный университет.
-  Итоговые решения принимаются учеником и семьёй совместно со специалистами.</p>
-  {foot(4, grade, st)}
+  <div class="all-in"><b>{L["all_in_title"]}</b>{e(L["all_in"])}</div>
+  <div class="comment"><b>{L["final_title"]}</b>{e(L["final"])}</div>
+  <p class="disclaimer">{e(L["disclaimer"])}</p>
+  {bottom(4)}
 </section>"""
-    return (f'<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>{e(d["name"])} — BHS Roadmap</title>'
+    return (f'<!doctype html><html lang="{lang}"><head><meta charset="utf-8"><title>{e(d["name"])} — BHS Roadmap</title>'
             f"<style>{_css(FONTS.as_uri())}</style></head><body>{body}</body></html>")
 
 

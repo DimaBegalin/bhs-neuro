@@ -32,3 +32,14 @@ def test_roadmap_pdf_is_printed(tmp_path):
     pdf = make_roadmap(tmp_path, _model(9))
     assert pdf == tmp_path / ROADMAP_PDF and pdf.read_bytes()[:4] == b"%PDF"
     assert not (tmp_path / ".browser").exists()
+
+
+@pytest.mark.parametrize("grade", [8, 9, 10])
+def test_kazakh_student_gets_kazakh_roadmap(grade):
+    from tests.v2.test_reports import _result
+    model = build_model(_result(lang="kk"), {**META, "student": {**META["student"], "grade": grade, "lang": "kk"}})
+    html = render_roadmap_html(model)
+    assert f"{grade}-сынып" in html and "Диагностика нені көрсетті" in html and 'lang="kk"' in html
+    assert "Практикалық" in html  # тип интересов — из казахских текстов отчёта
+    for russian in ("Что показала диагностика", "УЧЕНИК", "Рекомендации родителям", "Начал(а)"):
+        assert russian not in html
